@@ -2,6 +2,10 @@
   "name": "pesos",
   "version": "0.1.0",
   "private": true,
+  "author": {
+    "name": "getodevel",
+    "email": "getodevel@proton.me"
+  },
   "main": "electron.js",
   "scripts": {
     "dev": "next dev",
@@ -61,7 +65,9 @@
         "pacman"
       ],
       "icon": "public/logo.png",
-      "category": "Office"
+      "category": "Office",
+      "desktopName": "pesos",
+      "syncDesktopName": true
     },
     "mac": {
       "target": "zip",
