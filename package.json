@@ -1,5 +1,5 @@
 {
-  "name": "temp-next-app",
+  "name": "pesos",
   "version": "0.1.0",
   "private": true,
   "main": "electron.js",
@@ -55,7 +55,16 @@
       "icon": "public/logo.png"
     },
     "linux": {
-      "target": "AppImage",
+      "target": [
+        "AppImage",
+        "deb",
+        "pacman"
+      ],
+      "icon": "public/logo.png",
+      "category": "Office"
+    },
+    "mac": {
+      "target": "zip",
       "icon": "public/logo.png"
     }
   }

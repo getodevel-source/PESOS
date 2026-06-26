@@ -1,97 +1,233 @@
-# PESOS — Personal OS (Habits & Finances)
+# PESOS — Personal OS
 
-**PESOS** es un sistema operativo personal diseñado para centralizar tu productividad, hábitos, bitácora diaria y finanzas personales directamente en tu computadora local. Cuenta con integración nativa con un bot de Telegram con Inteligencia Artificial para interactuar con tus datos en lenguaje natural.
-
----
-
-## Características Principales
-
-* **📅 Vista General & Dashboard:** Control centralizado de tareas del día, recordatorios futuros, bitácora emocional y dietas.
-* **🔄 Hábitos Diarios:** Seguimiento de hábitos diarios con cálculo de racha e impacto de XP al completarlos.
-* **💰 Finanzas Personales:** Registro detallado de ingresos y gastos con conversión automática de Dólar MEP en Argentina para transacciones en USD.
-* **⚔️ Sistema RPG de Gamificación:** Subí de nivel, ganá XP y desbloqueá logros a medida que cumplís con tu planificación diaria y te mantenés bajo presupuesto.
-* **🤖 Bot de Telegram con IA ("Pesito"):** Agregá tareas, registrá gastos por voz o texto, y pedile resúmenes ejecutivos a través de IA (Gemini o DeepSeek/OpenCode) en español argentino informal.
-* **🔒 Privacidad Local (SQLite):** Todos tus datos se guardan de forma local en tu máquina en una base de datos SQLite embebida, sin depender de servicios en la nube ni Docker obligatorios.
+> **Tu sistema operativo personal para hábitos, finanzas y productividad diaria.** Corre 100% local, sin dependencias en la nube, con un bot de Telegram con IA incluido.
 
 ---
 
-## Requisitos de Entorno (`.env.local`)
+## ¿Qué es PESOS?
 
-Para habilitar todas las funciones (especialmente la IA y el Bot de Telegram), creá un archivo `.env.local` en la raíz del proyecto con la siguiente estructura:
+PESOS es una aplicación de escritorio (Electron + Next.js) que centraliza todo lo que necesitás para organizar tu vida diaria:
+
+| Módulo | Descripción |
+|--------|-------------|
+| 📅 **Dashboard** | Vista del día con tareas, recordatorios y bitácora emocional |
+| 🔄 **Hábitos** | Seguimiento diario con rachas y sistema de XP |
+| 💰 **Finanzas** | Ingresos, gastos y conversión automática ARS/USD (Dólar MEP) |
+| ⚔️ **Gamificación RPG** | Subís de nivel, ganás logros y desbloqueás recompensas |
+| 🤖 **Bot "Pesito"** | Telegram bot con IA para registrar gastos y tareas por voz o texto |
+| 🔒 **100% Local** | Base de datos SQLite embebida. Tus datos nunca salen de tu PC |
+
+---
+
+## Instalación Rápida (Linux)
+
+La forma más simple: un comando detecta tu distro y descarga e instala el paquete correcto.
 
 ```bash
-# Token del Bot de Telegram (Obtenido en BotFather)
-TELEGRAM_BOT_TOKEN="tu-token-aqui"
-
-# Proveedor de IA (Usar al menos uno)
-GOOGLE_AI_API_KEY="tu-api-key-de-gemini"
-OPENCODE_GO_API_KEY="tu-api-key-de-opencode"
+curl -fsSL https://raw.githubusercontent.com/getodevel/PESOS/main/install.sh | bash
 ```
 
+> **¿Qué hace el script?**
+> 1. Detecta tu distribución (Arch, Ubuntu, Debian, Fedora, etc.)
+> 2. Descarga el instalador correcto desde GitHub Releases
+> 3. Lo instala con tu gestor de paquetes nativo
+> 4. Crea el acceso directo en tu menú de aplicaciones
+
 ---
 
-## Instrucciones de Instalación por Sistema Operativo
+## Instalación Manual por Sistema Operativo
 
-### 🪟 Windows (Instalación con un clic)
-1. Descargá el archivo ejecutable `PESOS Setup 0.1.0.exe` desde la carpeta `dist/`.
-2. Hacé doble clic en el instalador.
-3. La aplicación se instalará y abrirá automáticamente. 
-4. **Ejecución en segundo plano:** Al cerrar la ventana principal con la **X**, la aplicación seguirá corriendo en segundo plano desde la bandeja del sistema (System Tray). Podés volver a abrirla o cerrarla por completo haciendo clic derecho sobre el ícono de PESOS en la barra de tareas.
+### 🐧 Linux
 
-### 🐧 Linux (Ejecución Portable)
-1. Descargá el archivo `PESOS-0.1.0.AppImage` desde la carpeta `dist/`.
-2. Dale permisos de ejecución al archivo:
-   ```bash
-   chmod +x PESOS-0.1.0.AppImage
-   ```
-3. Ejecutalo haciendo doble clic sobre él o desde la terminal:
-   ```bash
-   ./PESOS-0.1.0.AppImage
-   ```
+Descargá el instalador correcto para tu distro desde [GitHub Releases](https://github.com/getodevel/PESOS/releases/latest):
+
+#### Arch Linux / CachyOS / Manjaro / EndeavourOS
+
+```bash
+# Descargá el .pacman desde Releases y ejecutá:
+sudo pacman -U pesos-0.1.0.pacman
+
+# Con AUR helper (recomendado):
+paru -U pesos-0.1.0.pacman
+# o
+yay -U pesos-0.1.0.pacman
+```
+
+#### Ubuntu / Debian / Linux Mint / Pop!_OS / Zorin OS
+
+```bash
+# Descargá el .deb desde Releases y ejecutá:
+sudo dpkg -i pesos_0.1.0_amd64.deb
+
+# Si hay dependencias faltantes, resolvelas automáticamente:
+sudo apt-get install -f
+```
+
+#### Fedora / Red Hat / AlmaLinux / Rocky Linux
+
+> Por ahora no distribuimos `.rpm` nativo. Usá el AppImage portable (ver abajo).
+
+#### Cualquier distro — AppImage Portable
+
+El AppImage no requiere instalación. Funciona en cualquier distribución Linux moderna.
+
+```bash
+# Descargá PESOS-0.1.0.AppImage desde Releases
+chmod +x PESOS-0.1.0.AppImage
+./PESOS-0.1.0.AppImage
+```
+
+> **⚠️ Nota para sistemas modernos (Ubuntu 22.04+, Arch reciente):**
+> El AppImage requiere `libfuse2`. Si no abre:
+>
+> ```bash
+> # Arch / CachyOS / Manjaro
+> sudo pacman -S libfuse2
+>
+> # Ubuntu / Debian / Mint
+> sudo apt install libfuse2
+>
+> # Fedora
+> sudo dnf install fuse
+> ```
+
+---
+
+### 🪟 Windows
+
+1. Descargá `PESOS Setup 0.1.0.exe` desde [Releases](https://github.com/getodevel/PESOS/releases/latest)
+2. Ejecutá el instalador y seguí los pasos
+3. La app queda en el menú de inicio y en la bandeja del sistema (System Tray)
+
+> **Truco:** Al cerrar la ventana con la ✕, la app sigue corriendo en segundo plano (en la bandeja). El bot de Telegram permanece activo. Para cerrarla por completo, clic derecho sobre el ícono → **Salir**.
+
+---
 
 ### 🍎 macOS
-1. Descargá el archivo `PESOS-0.1.0-mac.zip` desde la carpeta `dist/` y descomprimilo.
-2. Trasladá la aplicación `PESOS.app` a tu carpeta de `/Applications`.
-3. Dado que el empaquetado para macOS requiere una firma y certificación oficial de Apple para saltarse los filtros de Gatekeeper, la primera vez que la abras tendrás que hacer **Clic derecho sobre la aplicación y seleccionar Abrir**, luego confirmar la ejecución en el menú de alerta de seguridad.
-4. *Nota:* Para compilar la versión definitiva firmada y notarizada oficialmente, seguí las instrucciones en el archivo [MACOS_BUILD.md](file:///home/geto/Proyectos/PESOS/MACOS_BUILD.md).
+
+1. Descargá `PESOS-0.1.0-mac.zip` desde [Releases](https://github.com/getodevel/PESOS/releases/latest)
+2. Descomprimí y arrastrá `PESOS.app` a `/Applications`
+3. Primera ejecución: **clic derecho → Abrir** (para saltear la verificación de Gatekeeper)
+
+> Para compilar una versión firmada con certificado Apple, seguí las instrucciones en [MACOS_BUILD.md](./MACOS_BUILD.md).
 
 ---
 
-## Despliegue en Servidores / VPS (Docker)
+## Configuración (Variables de Entorno)
 
-Si preferís desplegar **PESOS** en tu propio servidor Linux VPS para acceder a la aplicación mediante un navegador y dejar el bot de Telegram siempre activo en la nube:
+Antes de usar el Bot de Telegram y la IA, necesitás configurar las claves. Creá un archivo `.env.local` en la raíz de la app (donde está `electron.js`):
 
-1. Cloná este repositorio en tu VPS.
-2. Creá tu archivo `.env.local` en el servidor con los tokens necesarios.
-3. Ejecutá el levantamiento del contenedor:
-   ```bash
-   docker compose up -d --build
-   ```
-El contenedor se encargará de levantar automáticamente el servidor web de Next.js en el puerto `3000`, inicializará la base de datos SQLite y correrá en segundo plano el servicio `bot-daemon.js` encargado de escuchar al bot de Telegram mediante Long Polling de forma continua.
+```bash
+# ── Bot de Telegram ──────────────────────────────────────────
+# Obtenelo gratis en https://t.me/BotFather
+TELEGRAM_BOT_TOKEN="tu-token-de-botfather"
+
+# ── Inteligencia Artificial (usá al menos una) ────────────────
+# Google Gemini (recomendado): https://aistudio.google.com/app/apikey
+GOOGLE_AI_API_KEY="tu-api-key-de-gemini"
+
+# OpenCode / DeepSeek (alternativa):
+OPENCODE_GO_API_KEY="tu-api-key"
+```
+
+> El archivo `.env.local` **nunca se sube a git** (está en `.gitignore`). Tus claves son privadas.
+
+---
+
+## Despliegue en VPS / Servidor (Docker)
+
+Si querés que el bot de Telegram corra 24/7 en un servidor sin tener tu PC encendida:
+
+```bash
+# 1. Cloná el repo en tu VPS
+git clone https://github.com/getodevel/PESOS.git
+cd PESOS
+
+# 2. Creá tu .env.local con los tokens
+cp .env.local.example .env.local
+nano .env.local
+
+# 3. Levantá todo con Docker Compose
+docker compose up -d --build
+```
+
+El contenedor levanta el servidor Next.js en el puerto `3000` y el daemon del bot de Telegram en segundo plano. La base de datos SQLite se persiste en un volumen local.
 
 ---
 
 ## Guía de Desarrollo Local
 
-Si querés modificar el código y correr el proyecto en modo desarrollo:
+Si querés modificar o contribuir al código:
 
-1. **Instalar dependencias:**
-   ```bash
-   npm install
-   ```
-2. **Reconstruir dependencias nativas (SQLite):**
-   ```bash
-   npm rebuild better-sqlite3
-   ```
-3. **Correr Next.js (Web):**
-   ```bash
-   npm run dev
-   ```
-4. **Correr Electron (Escritorio):**
-   ```bash
-   npm run electron
-   ```
-5. **Ejecutar Pruebas Unitarias:**
-   ```bash
-   npm run test
-   ```
+### Prerequisitos
+
+- **Node.js** 20 o superior → [nodejs.org](https://nodejs.org)
+- **npm** 10+ (incluido con Node.js)
+
+```bash
+# Verificar versiones
+node -v  # debe ser >= 20
+npm -v   # debe ser >= 10
+```
+
+### Setup
+
+```bash
+# 1. Clonar el repo
+git clone https://github.com/getodevel/PESOS.git
+cd PESOS
+
+# 2. Instalar dependencias
+npm install
+
+# 3. Reconstruir bindings nativos de SQLite para tu entorno
+npm rebuild better-sqlite3
+
+# 4. Crear variables de entorno
+cp .env.local.example .env.local
+# Editá .env.local con tus tokens
+
+# 5. Correr en modo desarrollo
+npm run dev          # Levanta el servidor Next.js en localhost:3000
+npm run electron     # (en otra terminal) Abre la ventana de Electron
+
+# 6. Correr tests
+npm run test
+```
+
+### Empaquetar instaladores
+
+```bash
+# Buildear Next.js primero
+npm run build
+
+# Empaquetar para tu plataforma actual
+npm run electron-pack
+# Los instaladores quedan en ./dist/
+```
+
+---
+
+## Arquitectura
+
+```
+PESOS/
+├── electron.js          # Proceso principal de Electron (ventana + Telegram polling)
+├── scripts/
+│   └── bot-daemon.js    # Daemon standalone del bot (para Docker/VPS)
+├── src/
+│   ├── app/             # Rutas y páginas Next.js
+│   │   └── api/         # API Routes (SQLite, Telegram, IA)
+│   └── lib/
+│       └── sqlite-db.ts # Interfaz directa con la base de datos local
+├── Dockerfile           # Para despliegue en servidor
+└── install.sh           # Script de instalación automática (Linux)
+```
+
+**Base de datos:** Los datos se guardan en `~/.config/pesos/pesos.db` (SQLite local).
+
+---
+
+## Licencia
+
+MIT — Hacé lo que quieras con el código. Si lo mejorás, ¡compartí de vuelta!
