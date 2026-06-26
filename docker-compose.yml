@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  pesos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pesos-app
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist the local sqlite database outside the container
+      - pesos-data:/root/.config/pesos
+    env_file:
+      - .env.local
+
+volumes:
+  pesos-data:

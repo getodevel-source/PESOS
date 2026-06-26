@@ -88,8 +88,8 @@ export default function ChatBot() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserId(data.user?.id ?? null)
+    supabase.auth.getUser().then(({ data }: any) => {
+      setUserId(data?.user?.id ?? null)
     })
   }, [supabase])
 

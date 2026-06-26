@@ -74,35 +74,35 @@ async function buildUserContext(userId: string, monthlyBudgetLimit?: number): Pr
         .limit(10),
     ])
 
-  const tasks = tasksResult.data || []
-  const habits = habitsResult.data || []
-  const habitLogs = logsResult.data || []
-  const transactions = transactionsResult.data || []
-  const upcoming = upcomingResult.data || []
+  const tasks = (tasksResult.data || []) as any[]
+  const habits = (habitsResult.data || []) as any[]
+  const habitLogs = (logsResult.data || []) as any[]
+  const transactions = (transactionsResult.data || []) as any[]
+  const upcoming = (upcomingResult.data || []) as any[]
 
-  const completedHabitIds = new Set(habitLogs.map((l) => l.habit_id))
+  const completedHabitIds = new Set(habitLogs.map((l: any) => l.habit_id))
 
   // Tasks segmented
-  const pendingTasks = tasks.filter((t) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr))
-  const doneTasks = tasks.filter((t) => t.status === 'done')
+  const pendingTasks = tasks.filter((t: any) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr))
+  const doneTasks = tasks.filter((t: any) => t.status === 'done')
 
   // Finance aggregation
   const todayTransactions = transactions.filter(
-    (t) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
+    (t: any) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
   )
   const totalExpensesToday = todayTransactions
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter((t: any) => t.type === 'expense')
+    .reduce((s: number, t: any) => s + Number(t.amount), 0)
   const totalIncomeToday = todayTransactions
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter((t: any) => t.type === 'income')
+    .reduce((s: number, t: any) => s + Number(t.amount), 0)
 
   const totalExpenses30d = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter((t: any) => t.type === 'expense')
+    .reduce((s: number, t: any) => s + Number(t.amount), 0)
   const totalIncome30d = transactions
-    .filter((t) => t.type === 'income')
-    .reduce((s, t) => s + Number(t.amount), 0)
+    .filter((t: any) => t.type === 'income')
+    .reduce((s: number, t: any) => s + Number(t.amount), 0)
 
   // Monthly budget calculation
   const now30 = new Date()

@@ -235,8 +235,8 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           .select('achievement_id')
           .eq('user_id', initialUser.id)
 
-        const unlockedIds = new Set((unlockedAchievements || []).map(ua => ua.achievement_id))
-        const achievementsWithUnlock = (allAchievements || []).map(ach => ({
+        const unlockedIds = new Set((unlockedAchievements || []).map((ua: any) => ua.achievement_id))
+        const achievementsWithUnlock = (allAchievements || []).map((ach: any) => ({
           ...ach,
           unlocked: unlockedIds.has(ach.id)
         }))

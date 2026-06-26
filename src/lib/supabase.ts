@@ -1,43 +1,124 @@
-import { createServerClient } from '@supabase/ssr'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
+import { runSQLiteQuery, MOCK_USER_ID, MOCK_USER_EMAIL } from './sqlite-db'
 
 /**
- * Creates a Supabase client for use in Server Components, Route Handlers, or Server Actions.
- * Handles automatic cookie synchronization with Next.js headers.
+ * Server-side mock query chain that maps calls directly to SQLite.
  */
-export async function createServerClientInstance() {
-  const cookieStore = await cookies()
+class ServerMockQueryChain {
+  table: string
+  action: string = 'select'
+  args: any = null
+  filters: any[] = []
+  orderBy: any = null
+  singleRow: boolean = false
+  maybeSingleRow: boolean = false
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Can be ignored if middleware handles session refreshes
-          }
-        },
-      },
+  shouldThrow: boolean = false
+
+  constructor(table: string) {
+    this.table = table
+  }
+
+  select() {
+    this.action = 'select'
+    return this
+  }
+
+  insert(values: any) {
+    this.action = 'insert'
+    this.args = values
+    return this
+  }
+
+  update(values: any) {
+    this.action = 'update'
+    this.args = values
+    return this
+  }
+
+  delete() {
+    this.action = 'delete'
+    return this
+  }
+
+  eq(column: string, value: any) {
+    this.filters.push({ type: 'eq', column, value })
+    return this
+  }
+
+  order(column: string, options?: { ascending: boolean }) {
+    this.orderBy = { column, ascending: options?.ascending ?? true }
+    return this
+  }
+
+  single() {
+    this.singleRow = true
+    return this
+  }
+
+  maybeSingle() {
+    this.maybeSingleRow = true
+    return this
+  }
+
+  throwOnError() {
+    this.shouldThrow = true
+    return this
+  }
+
+  async then(resolve: (value: any) => void, reject?: (reason: any) => void) {
+    try {
+      const res = runSQLiteQuery({
+        table: this.table,
+        action: this.action,
+        args: this.args,
+        filters: this.filters,
+        order: this.orderBy,
+        single: this.singleRow,
+        maybeSingle: this.maybeSingleRow
+      })
+      if (this.shouldThrow && res.error) {
+        throw new Error(typeof res.error === 'string' ? res.error : (res.error as any)?.message || String(res.error))
+      }
+      resolve(res)
+    } catch (err) {
+      if (reject) reject(err)
+      else throw err
     }
-  )
+  }
 }
 
-/**
- * Creates an admin Supabase client using the service role key.
- * This client bypasses Row Level Security (RLS) and is intended for backend services like webhooks.
- */
+class ServerMockSupabaseClient {
+  auth = {
+    getUser: async () => ({
+      data: {
+        user: {
+          id: MOCK_USER_ID,
+          email: MOCK_USER_EMAIL
+        }
+      },
+      error: null
+    }),
+    signOut: async () => ({ error: null }),
+  }
+
+  from(table: string) {
+    return new ServerMockQueryChain(table)
+  }
+
+  rpc(name: string, args?: any) {
+    return {
+      then: async (resolve: (value: any) => void) => {
+        const res = runSQLiteQuery({ rpcName: name, rpcArgs: args })
+        resolve(res)
+      }
+    }
+  }
+}
+
+export async function createServerClientInstance() {
+  return new ServerMockSupabaseClient() as any
+}
+
 export function createAdminClient() {
-  return createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  return new ServerMockSupabaseClient() as any
 }

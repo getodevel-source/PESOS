@@ -3,18 +3,32 @@ import { POST } from './route'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/supabase', () => {
-  const mockMaybeSingle = vi.fn()
+  const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
   const mockEq = vi.fn(() => ({
     maybeSingle: mockMaybeSingle,
   }))
   const mockSelect = vi.fn(() => ({
     eq: mockEq,
   }))
-  const mockInsert = vi.fn()
+  const mockThrowOnError = vi.fn().mockResolvedValue({ data: null, error: null })
+  const mockInsert = vi.fn(() => ({
+    throwOnError: mockThrowOnError,
+    then: vi.fn((resolve) => resolve({ data: null, error: null })),
+  }))
   const mockUpdateEq = vi.fn().mockResolvedValue({ data: null, error: null })
   const mockUpdate = vi.fn(() => ({
     eq: mockUpdateEq,
   }))
+
+  const defaultQueryMock: any = {
+    select: vi.fn(() => defaultQueryMock),
+    eq: vi.fn(() => defaultQueryMock),
+    order: vi.fn(() => defaultQueryMock),
+    limit: vi.fn(() => defaultQueryMock),
+    gte: vi.fn(() => defaultQueryMock),
+    gt: vi.fn(() => defaultQueryMock),
+    then: vi.fn((resolve) => resolve({ data: [], error: null })),
+  }
 
   const mockSupabase = {
     from: vi.fn((table) => {
@@ -29,7 +43,7 @@ vi.mock('@/lib/supabase', () => {
           insert: mockInsert,
         }
       }
-      return {} as Record<string, unknown>
+      return defaultQueryMock
     }),
   }
 
@@ -41,6 +55,7 @@ vi.mock('@/lib/supabase', () => {
     _mocks: {
       mockSupabase,
       mockInsert,
+      mockThrowOnError,
       mockSelect,
       mockEq,
       mockMaybeSingle,
@@ -53,6 +68,7 @@ vi.mock('@/lib/supabase', () => {
 interface MockedSupabaseModule {
   _mocks: {
     mockInsert: ReturnType<typeof vi.fn>
+    mockThrowOnError: ReturnType<typeof vi.fn>
     mockEq: ReturnType<typeof vi.fn>
     mockMaybeSingle: ReturnType<typeof vi.fn>
     mockUpdate: ReturnType<typeof vi.fn>
@@ -64,6 +80,7 @@ interface MockedSupabaseModule {
 const supabaseMock = (await import('@/lib/supabase')) as unknown as MockedSupabaseModule
 const {
   mockInsert,
+  mockThrowOnError,
   mockEq,
   mockMaybeSingle,
   mockUpdate,
@@ -75,6 +92,8 @@ describe('Telegram Webhook Route Handler', () => {
 
   beforeEach(() => {
     vi.resetAllMocks()
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null })
+    mockThrowOnError.mockResolvedValue({ data: null, error: null })
     process.env = { ...originalEnv, TELEGRAM_BOT_TOKEN: 'test_token' }
   })
 
@@ -134,8 +153,6 @@ describe('Telegram Webhook Route Handler', () => {
       error: null,
     })
 
-    mockInsert.mockResolvedValueOnce({ error: null })
-
     const payload = {
       update_id: 1,
       message: {
@@ -179,8 +196,6 @@ describe('Telegram Webhook Route Handler', () => {
       error: null,
     })
 
-    mockInsert.mockResolvedValueOnce({ error: null })
-
     const payload = {
       update_id: 2,
       message: {
@@ -223,8 +238,6 @@ describe('Telegram Webhook Route Handler', () => {
       error: null,
     })
 
-    mockInsert.mockResolvedValueOnce({ error: null })
-
     const payload = {
       update_id: 3,
       message: {
@@ -253,7 +266,7 @@ describe('Telegram Webhook Route Handler', () => {
 
   it('should return 500 if database insertion fails', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null })
-    mockInsert.mockResolvedValueOnce({ error: { message: 'DB Error' } })
+    mockThrowOnError.mockRejectedValueOnce(new Error('Database insertion failed'))
 
     const payload = { message: { text: 'fail-insert' } }
     const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
@@ -264,6 +277,6 @@ describe('Telegram Webhook Route Handler', () => {
     const response = await POST(request)
     expect(response.status).toBe(500)
     const json = await response.json()
-    expect(json.error).toBe('Database insertion failed')
+    expect(json.error).toBe('Internal Server Error')
   })
 })

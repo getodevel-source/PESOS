@@ -73,25 +73,25 @@ async function buildUserContext(userId: string): Promise<string> {
         .limit(10),
     ])
 
-  const tasks = tasksResult.data || []
-  const habits = habitsResult.data || []
-  const habitLogs = logsResult.data || []
-  const transactions = transactionsResult.data || []
-  const upcoming = upcomingResult.data || []
+  const tasks = (tasksResult.data || []) as any[]
+  const habits = (habitsResult.data || []) as any[]
+  const habitLogs = (logsResult.data || []) as any[]
+  const transactions = (transactionsResult.data || []) as any[]
+  const upcoming = (upcomingResult.data || []) as any[]
 
-  const completedHabitIds = new Set(habitLogs.map((l) => l.habit_id))
+  const completedHabitIds = new Set(habitLogs.map((l: any) => l.habit_id))
   const pendingTasks = tasks.filter(
-    (t) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr)
+    (t: any) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr)
   )
-  const doneTasks = tasks.filter((t) => t.status === 'done')
+  const doneTasks = tasks.filter((t: any) => t.status === 'done')
 
   const todayTx = transactions.filter(
-    (t) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
+    (t: any) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
   )
-  const expensesToday = todayTx.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-  const incomeToday = todayTx.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
-  const expenses30d = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-  const income30d = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+  const expensesToday = todayTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
+  const incomeToday = todayTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
+  const expenses30d = transactions.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
+  const income30d = transactions.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
 
   const dateLabel = new Date().toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -100,20 +100,20 @@ async function buildUserContext(userId: string): Promise<string> {
   return `=== CONTEXTO — HOY: ${dateLabel} ===
 
 🗂 TAREAS PENDIENTES (${pendingTasks.length}):
-${pendingTasks.length === 0 ? '  • Sin tareas pendientes' : pendingTasks.map((t) => `  • ${t.title}${t.due_date ? ` [${new Date(t.due_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}]` : ''}`).join('\n')}
+${pendingTasks.length === 0 ? '  • Sin tareas pendientes' : pendingTasks.map((t: any) => `  • ${t.title}${t.due_date ? ` [${new Date(t.due_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}]` : ''}`).join('\n')}
 
 ✅ COMPLETADAS HOY (${doneTasks.length}):
-${doneTasks.length === 0 ? '  • Ninguna' : doneTasks.map((t) => `  • ✓ ${t.title}`).join('\n')}
+${doneTasks.length === 0 ? '  • Ninguna' : doneTasks.map((t: any) => `  • ✓ ${t.title}`).join('\n')}
 
 🔔 PRÓXIMOS RECORDATORIOS (${upcoming.length}):
-${upcoming.length === 0 ? '  • Sin recordatorios futuros' : upcoming.map((t) => `  • ${t.title} — ${new Date(t.due_date!).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} ${new Date(t.due_date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`).join('\n')}
+${upcoming.length === 0 ? '  • Sin recordatorios futuros' : upcoming.map((t: any) => `  • ${t.title} — ${new Date(t.due_date!).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} ${new Date(t.due_date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`).join('\n')}
 
 🔄 HÁBITOS (${completedHabitIds.size}/${habits.length} completados):
-${habits.length === 0 ? '  • Sin hábitos' : habits.map((h) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.name}`).join('\n')}
+${habits.length === 0 ? '  • Sin hábitos' : habits.map((h: any) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.name}`).join('\n')}
 
 💰 FINANZAS HOY: Gastos $${expensesToday.toFixed(2)} | Ingresos $${incomeToday.toFixed(2)} | Balance $${(incomeToday - expensesToday).toFixed(2)}
 📊 30 DÍAS: Gastado $${expenses30d.toFixed(2)} | Ingresado $${income30d.toFixed(2)} | Balance $${(income30d - expenses30d).toFixed(2)}
-🧾 ÚLTIMAS 5 TX: ${transactions.slice(0, 5).map((t) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} $${Number(t.amount).toFixed(2)}`).join(' | ')}
+🧾 ÚLTIMAS 5 TX: ${transactions.slice(0, 5).map((t: any) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} $${Number(t.amount).toFixed(2)}`).join(' | ')}
 
 === FIN ===`
 }
@@ -243,7 +243,7 @@ async function handleCommand(
         await sendTelegramMessage(chatId, '⚠️ No encontré tu cuenta. Verificá tu nombre de usuario de Telegram en el perfil de Pesos.')
         return
       }
-      const { data: tasks } = await supabase
+      const { data: tasksResult } = await supabase
         .from('tasks')
         .select('title, due_date, status')
         .eq('user_id', userId)
@@ -251,13 +251,15 @@ async function handleCommand(
         .order('created_at', { ascending: false })
         .limit(15)
 
-      if (!tasks || tasks.length === 0) {
+      const tasks = (tasksResult || []) as any[]
+
+      if (tasks.length === 0) {
         await sendTelegramMessage(chatId, '✅ ¡No tenés tareas pendientes! Bien hecho.')
         return
       }
 
       const list = tasks
-        .map((t) =>
+        .map((t: any) =>
           `• ${t.title}${t.due_date ? ` _(${new Date(t.due_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})_` : ''}`
         )
         .join('\n')
@@ -271,19 +273,22 @@ async function handleCommand(
         await sendTelegramMessage(chatId, '⚠️ No encontré tu cuenta.')
         return
       }
-      const [{ data: habits }, { data: logs }] = await Promise.all([
+      const [{ data: habitsResult }, { data: logsResult }] = await Promise.all([
         supabase.from('habits').select('id, name').eq('user_id', userId).limit(20),
         supabase.from('habit_logs').select('habit_id').eq('log_date', todayStr),
       ])
 
-      if (!habits || habits.length === 0) {
+      const habits = (habitsResult || []) as any[]
+      const logs = (logsResult || []) as any[]
+
+      if (habits.length === 0) {
         await sendTelegramMessage(chatId, 'No tenés hábitos registrados todavía.')
         return
       }
 
-      const completedIds = new Set((logs || []).map((l) => l.habit_id))
+      const completedIds = new Set(logs.map((l: any) => l.habit_id))
       const list = habits
-        .map((h) => `${completedIds.has(h.id) ? '✅' : '⬜'} ${h.name}`)
+        .map((h: any) => `${completedIds.has(h.id) ? '✅' : '⬜'} ${h.name}`)
         .join('\n')
       const pct = Math.round((completedIds.size / habits.length) * 100)
 
@@ -307,15 +312,15 @@ async function handleCommand(
         .order('created_at', { ascending: false })
         .limit(20)
 
-      const transactions = txs || []
-      const expenses = transactions.filter((t) => t.type === 'expense')
-      const income = transactions.filter((t) => t.type === 'income')
-      const totalExp = expenses.reduce((s, t) => s + Number(t.amount), 0)
-      const totalInc = income.reduce((s, t) => s + Number(t.amount), 0)
+      const transactions = (txs || []) as any[]
+      const expenses = transactions.filter((t: any) => t.type === 'expense')
+      const income = transactions.filter((t: any) => t.type === 'income')
+      const totalExp = expenses.reduce((s: number, t: any) => s + Number(t.amount), 0)
+      const totalInc = income.reduce((s: number, t: any) => s + Number(t.amount), 0)
 
       const txList = transactions
         .slice(0, 8)
-        .map((t) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} *$${toARSDisplay(Number(t.amount))}*`)
+        .map((t: any) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} *$${toARSDisplay(Number(t.amount))}*`)
         .join('\n')
 
       await sendTelegramMessage(
