@@ -52,15 +52,11 @@ PKG_TYPE=""
 INSTALL_CMD=""
 
 # Arch y derivados (Manjaro, CachyOS, EndeavourOS, Garuda...)
+# Usamos AppImage + .desktop entry: misma experiencia que un paquete nativo,
+# sin los problemas de dependencias del formato pacman de electron-builder.
 if echo "$DISTRO_ID $DISTRO_ID_LIKE" | grep -qiE "arch|cachyos|manjaro|endeavour|garuda|artix"; then
-    PKG_TYPE="pacman"
-    if command -v paru &>/dev/null; then
-        INSTALL_CMD="paru -U"
-    elif command -v yay &>/dev/null; then
-        INSTALL_CMD="yay -U"
-    else
-        INSTALL_CMD="sudo pacman -U"
-    fi
+    PKG_TYPE="AppImage"
+    INSTALL_CMD="portable"
     info "Detectado: Arch Linux / ${PRETTY_NAME:-${DISTRO_ID}}"
 
 # Debian y derivados (Ubuntu, Mint, Pop!_OS, Zorin, elementary...)
@@ -69,26 +65,13 @@ elif echo "$DISTRO_ID $DISTRO_ID_LIKE" | grep -qiE "debian|ubuntu|mint|pop|zorin
     INSTALL_CMD="sudo dpkg -i"
     info "Detectado: Debian/Ubuntu / ${PRETTY_NAME:-${DISTRO_ID}}"
 
-# Fedora y derivados (Fedora, CentOS, RHEL, AlmaLinux...)
+# Fedora y derivados
 elif echo "$DISTRO_ID $DISTRO_ID_LIKE" | grep -qiE "fedora|rhel|centos|alma|rocky"; then
-    PKG_TYPE="rpm"
-    if command -v dnf &>/dev/null; then
-        INSTALL_CMD="sudo dnf install -y"
-    else
-        INSTALL_CMD="sudo rpm -i"
-    fi
-    warn "Tu distro es Fedora/RPM. Por ahora distribuimos .deb y .pacman."
-    warn "Usaremos AppImage como alternativa portable."
     PKG_TYPE="AppImage"
     INSTALL_CMD="portable"
+    info "Detectado: Fedora/RHEL / ${PRETTY_NAME:-${DISTRO_ID}}"
 
-# openSUSE
-elif echo "$DISTRO_ID $DISTRO_ID_LIKE" | grep -qiE "suse|opensuse"; then
-    PKG_TYPE="AppImage"
-    INSTALL_CMD="portable"
-    warn "openSUSE detectado. Usando AppImage portable."
-
-# Fallback → AppImage
+# Cualquier otra distro → AppImage portable
 else
     PKG_TYPE="AppImage"
     INSTALL_CMD="portable"
@@ -185,34 +168,58 @@ case "$PKG_TYPE" in
         ok "${APP_NAME} instalado con rpm/dnf."
         ;;
     portable)
-        # AppImage: copiar a ~/.local/bin y hacer ejecutable
+        # AppImage: instalar en ~/.local/bin con nombre limpio
         INSTALL_PATH="$HOME/.local/bin/pesos"
         mkdir -p "$HOME/.local/bin"
         cp "${TMPDIR_PESOS}/${FILENAME}" "$INSTALL_PATH"
         chmod +x "$INSTALL_PATH"
         ok "AppImage instalado en ${BOLD}${INSTALL_PATH}${RESET}"
 
-        # Verificar si ~/.local/bin está en PATH
-        if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
-            warn "~/.local/bin no está en tu PATH."
-            warn "Agregá esta línea a tu ~/.bashrc o ~/.zshrc:"
-            echo -e "  ${CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}"
+        # Extraer ícono embebido del AppImage (si está disponible)
+        ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+        mkdir -p "$ICON_DIR"
+        # Intentar extraer el ícono directamente del AppImage
+        cd /tmp && "$INSTALL_PATH" --appimage-extract "*.png" >/dev/null 2>&1 || true
+        EXTRACTED_ICON=$(find /tmp/squashfs-root -name "*.png" 2>/dev/null | head -1)
+        if [ -n "$EXTRACTED_ICON" ]; then
+            cp "$EXTRACTED_ICON" "$ICON_DIR/pesos.png"
+            rm -rf /tmp/squashfs-root
+            ok "Ícono extraído e instalado."
         fi
+        cd - >/dev/null
 
-        # Crear .desktop entry
+        # Crear .desktop entry completo
         DESKTOP_FILE="$HOME/.local/share/applications/pesos.desktop"
         mkdir -p "$HOME/.local/share/applications"
         cat > "$DESKTOP_FILE" <<DESKTOP
 [Desktop Entry]
 Name=PESOS
-Comment=Personal OS - Habits & Finance
-Exec=${INSTALL_PATH}
-Icon=pesos
+GenericName=Personal OS
+Comment=Hábitos, finanzas y productividad personal con IA
+Exec=${INSTALL_PATH} %U
+Icon=${ICON_DIR}/pesos.png
 Type=Application
 Categories=Office;Finance;Utility;
+StartupWMClass=pesos
 StartupNotify=true
+Keywords=hábitos;finanzas;productividad;telegram;
 DESKTOP
         ok "Acceso directo creado en el menú de aplicaciones."
+
+        # Verificar si ~/.local/bin está en PATH
+        if ! echo "$PATH" | grep -q "$HOME/.local/bin"; then
+            warn "~/.local/bin no está en tu PATH."
+            warn "Agregá esta línea a tu ~/.bashrc o ~/.zshrc y reiniciá la terminal:"
+            echo -e "  ${CYAN}export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}"
+        fi
+
+        # Actualizar índice de aplicaciones del escritorio
+        if command -v update-desktop-database &>/dev/null; then
+            update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+        fi
+        if command -v xdg-desktop-menu &>/dev/null; then
+            xdg-desktop-menu forceupdate 2>/dev/null || true
+        fi
         ;;
 esac
 

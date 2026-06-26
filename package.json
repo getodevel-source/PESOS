@@ -61,13 +61,13 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb",
-        "pacman"
+        "deb"
       ],
       "icon": "public/logo.png",
-      "category": "Office",
-      "desktopName": "pesos",
-      "syncDesktopName": true
+      "category": "Office"
+    },
+    "deb": {
+      "depends": ["libglib2.0-0", "libnss3", "libatk1.0-0", "libatk-bridge2.0-0", "libx11-6"]
     },
     "mac": {
       "target": "zip",
