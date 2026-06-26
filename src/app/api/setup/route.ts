@@ -4,28 +4,59 @@ import path from 'path'
 
 export const dynamic = 'force-dynamic'
 
+export async function GET() {
+  // Returns which env vars are currently configured (values masked)
+  return NextResponse.json({
+    telegramBotToken: !!process.env.TELEGRAM_BOT_TOKEN,
+    googleAiApiKey: !!process.env.GOOGLE_AI_API_KEY,
+    opencodeApiKey: !!process.env.OPENCODE_GO_API_KEY,
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { supabaseUrl, supabaseAnonKey, telegramBotToken, isLocal } = await request.json()
+    const { telegramBotToken, googleAiApiKey, opencodeApiKey } = await request.json()
 
-    // Build the .env.local content
-    let envContent = ''
-    if (isLocal) {
-      // Default local Supabase config (typical local docker setup)
-      envContent = `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'}
-SUPABASE_SERVICE_ROLE_KEY=eyJo...
-TELEGRAM_BOT_TOKEN=${telegramBotToken || ''}
-`
-    } else {
-      envContent = `NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl || ''}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseAnonKey || ''}
-TELEGRAM_BOT_TOKEN=${telegramBotToken || ''}
-`
+    if (!telegramBotToken && !googleAiApiKey && !opencodeApiKey) {
+      return NextResponse.json(
+        { success: false, error: 'Tenés que configurar al menos una clave para continuar.' },
+        { status: 400 }
+      )
     }
 
-    // Write to .env.local in the root directory
+    // Read existing .env.local if it exists to preserve any unknown keys
     const envPath = path.join(process.cwd(), '.env.local')
+    const lines: Record<string, string> = {}
+
+    if (fs.existsSync(envPath)) {
+      const existing = fs.readFileSync(envPath, 'utf-8')
+      existing.split('\n').forEach((line) => {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) return
+        const idx = trimmed.indexOf('=')
+        if (idx === -1) return
+        const key = trimmed.slice(0, idx).trim()
+        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '')
+        lines[key] = val
+      })
+    }
+
+    // Overwrite only the keys the user provided
+    if (telegramBotToken !== undefined && telegramBotToken !== '')
+      lines['TELEGRAM_BOT_TOKEN'] = telegramBotToken
+    if (googleAiApiKey !== undefined && googleAiApiKey !== '')
+      lines['GOOGLE_AI_API_KEY'] = googleAiApiKey
+    if (opencodeApiKey !== undefined && opencodeApiKey !== '')
+      lines['OPENCODE_GO_API_KEY'] = opencodeApiKey
+
+    // Rebuild .env.local
+    const envContent =
+      '# PESOS — Variables de entorno\n# Generado automáticamente por el asistente de configuración\n\n' +
+      Object.entries(lines)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join('\n') +
+      '\n'
+
     fs.writeFileSync(envPath, envContent, 'utf-8')
 
     return NextResponse.json({ success: true })
