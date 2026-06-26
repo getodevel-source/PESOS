@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pesos - Cargando</title>
+  <style>
+    :root {
+      --background: #020617;
+      --foreground: #f8fafc;
+      --card-bg: rgba(15, 23, 42, 0.6);
+      --card-border: rgba(255, 255, 255, 0.05);
+      --brand-indigo: #6366f1;
+      --brand-violet: #8b5cf6;
+      --brand-blue: #0ea5e9;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15), var(--background) 70%);
+      color: var(--foreground);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      overflow: hidden;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: var(--card-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--card-border);
+      border-radius: 1.25rem;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .logo-container {
+      position: relative;
+      width: 88px;
+      height: 88px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.75rem;
+    }
+
+    .glow-ring {
+      position: absolute;
+      inset: -4px;
+      border-radius: 1.5rem;
+      background: linear-gradient(135deg, var(--brand-indigo), var(--brand-violet), var(--brand-blue));
+      filter: blur(8px);
+      opacity: 0.65;
+      animation: rotateGlow 6s linear infinite;
+    }
+
+    .logo-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 1.5rem;
+      background: #090d1f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .logo-img {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      border-radius: 0.75rem;
+      animation: pulseLogo 2.5s ease-in-out infinite;
+    }
+
+    .title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(to right, #ffffff, #cbd5e1);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      max-width: 260px;
+      line-height: 1.5;
+      margin-bottom: 1.75rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.6875rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .ping-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--brand-indigo);
+      position: relative;
+    }
+
+    .ping-dot::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background-color: var(--brand-indigo);
+      animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+    }
+
+    @keyframes rotateGlow {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulseLogo {
+      0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 0px rgba(99, 102, 241, 0));
+      }
+      50% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.3));
+      }
+    }
+
+    @keyframes ping {
+      75%, 100% {
+        transform: scale(3.5);
+        opacity: 0;
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-container">
+      <div class="glow-ring"></div>
+      <div class="logo-bg">
+        <img class="logo-img" src="logo.png" alt="Pesos Logo">
+      </div>
+    </div>
+    <h1 class="title">Iniciando Pesos</h1>
+    <p class="subtitle">Arrancando servicios locales. Esta ventana cargará la aplicación automáticamente cuando esté lista.</p>
+    <div class="status-badge">
+      <span class="ping-dot"></span>
+      <span>Iniciando servidor local...</span>
+    </div>
+  </div>
+
+  <script>
+    // Poll the backend until it's ready, then redirect
+    const appUrl = 'http://localhost:3000';
+    
+    function checkConnection() {
+      // Use no-cors mode to bypass CORS blocking
+      fetch(appUrl, { mode: 'no-cors' })
+        .then(() => {
+          // Success! Redirect to the application
+          window.location.href = appUrl;
+        })
+        .catch(() => {
+          // Connection failed, retry in 800ms
+          setTimeout(checkConnection, 800);
+        });
+    }
+
+    // Start checking after a short delay to let the window render
+    setTimeout(checkConnection, 500);
+  </script>
+</body>
+</html>

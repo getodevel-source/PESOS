@@ -1,26 +1,118 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #060709;
+  --foreground: #f8fafc;
+  
+  /* Logo Theme Colors */
+  --habit-green: #10b981;
+  --finance-blue: #3b82f6;
+  --task-purple: #7c3aed;
+  
+  --panel-dark: rgba(13, 17, 23, 0.7);
+  --border-primary: rgba(255, 255, 255, 0.06);
+  --font-berkeley: 'Berkeley Mono', var(--font-geist-mono), monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-panel: var(--panel-dark);
+  --color-border-primary: var(--border-primary);
+  
+  --color-habit-green: var(--habit-green);
+  --color-finance-blue: var(--finance-blue);
+  --color-task-purple: var(--task-purple);
+  --color-brand-indigo: var(--task-purple);
+  
+  --font-sans: var(--font-inter), sans-serif;
+  --font-mono: var(--font-berkeley), monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv01" on, "ss03" on;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(13, 17, 23, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-hover:hover {
+  background: rgba(13, 17, 23, 0.6);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+/* Micro-animations */
+@keyframes checkGlow {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 8px 4px rgba(16, 185, 129, 0.2);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.animate-check-glow {
+  animation: checkGlow 0.4s ease-out forwards;
+}
+
+@keyframes taskComplete {
+  0% {
+    text-decoration-color: transparent;
+  }
+  100% {
+    text-decoration-color: currentColor;
+  }
+}
+
+.task-completed {
+  animation: taskComplete 0.3s ease-out forwards;
+}
+
+/* Hide Next.js dev indicators and portals (especially for Electron wrapper) */
+nextjs-portal,
+#nextjs-dev-indicator,
+.__next-feedback,
+div[data-nextjs-toast-wrapper] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
 }
