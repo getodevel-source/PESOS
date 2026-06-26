@@ -5,14 +5,12 @@
 # desde los Releases de GitHub.
 #
 # Uso:
-#   curl -fsSL https://raw.githubusercontent.com/getodevel/PESOS/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/getodevel-source/PESOS/main/install.sh | bash
 #   o bien, si ya lo clonaste:
 #   bash install.sh
 # ============================================================
 
-set -e
-
-REPO="getodevel/PESOS"
+REPO="getodevel-source/PESOS"
 APP_NAME="PESOS"
 INSTALL_VERSION="latest"
 
@@ -104,13 +102,25 @@ if ! command -v curl &>/dev/null; then
     err "curl no está instalado. Instalalo con tu gestor de paquetes y volvé a correr este script."
 fi
 
-RELEASE_JSON=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null) || \
-    err "No se pudo conectar con la API de GitHub. Verificá tu conexión a internet."
+# Fetch release JSON — use -s (silent) without -f so we get the body even on 4xx
+HTTP_CODE=$(curl -s -o /tmp/pesos_release.json -w "%{http_code}" \
+    "https://api.github.com/repos/${REPO}/releases/latest" 2>/dev/null)
+
+if [ "$HTTP_CODE" = "000" ]; then
+    err "Sin conexión a internet. Verificá tu red y volvé a intentar."
+elif [ "$HTTP_CODE" = "404" ] || echo "$(cat /tmp/pesos_release.json)" | grep -q '"Not Found"'; then
+    err "Todavía no hay releases publicados en este repositorio.\n  Descargá los instaladores directamente desde:\n  ${CYAN}https://github.com/${REPO}/releases${RESET}\n  o compilalo vos mismo siguiendo el README."
+elif [ "$HTTP_CODE" != "200" ]; then
+    err "Error inesperado de la API de GitHub (HTTP $HTTP_CODE). Intentá de nuevo en unos minutos."
+fi
+
+RELEASE_JSON=$(cat /tmp/pesos_release.json)
+rm -f /tmp/pesos_release.json
 
 # Extraer versión
 VERSION=$(echo "$RELEASE_JSON" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
 if [ -z "$VERSION" ]; then
-    err "No se encontró ningún release publicado en https://github.com/${REPO}/releases. Asegurate de que existan releases publicados."
+    err "No se pudo parsear la respuesta de GitHub. Intentá de nuevo."
 fi
 
 ok "Versión más reciente: ${BOLD}${VERSION}${RESET}"
