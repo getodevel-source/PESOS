@@ -2,12 +2,15 @@
   "name": "temp-next-app",
   "version": "0.1.0",
   "private": true,
+  "main": "electron.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "electron": "electron .",
+    "electron-pack": "electron-builder"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -24,11 +27,34 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.1.9"
+  },
+  "build": {
+    "appId": "com.getodevel.pesos",
+    "productName": "PESOS",
+    "files": [
+      "**/*",
+      "!.next/cache/**/*",
+      "!node_modules/electron/**/*",
+      "!node_modules/electron-builder/**/*"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/logo.png"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/logo.png"
+    }
   }
 }

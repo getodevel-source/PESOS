@@ -1,6 +1,7 @@
 import { createServerClientInstance } from "@/lib/supabase";
 import Dashboard from "@/components/Dashboard";
 import AuthForm from "@/components/AuthForm";
+import SetupWizard from "@/components/SetupWizard";
 
 export const dynamic = "force-dynamic";
 
@@ -37,26 +38,7 @@ export default async function Home() {
   }
 
   if (setupError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-slate-100 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/40 via-slate-950 to-slate-950">
-        <div className="w-full max-w-md bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl text-center space-y-4 flex flex-col items-center">
-          <img src="/logo.png" alt="Pesos Logo" className="h-16 w-16 mb-2 object-contain rounded-2xl shadow-md border border-white/5" />
-          <h1 className="text-2xl font-bold text-red-400">Pesos Setup Required</h1>
-          <p className="text-sm text-slate-300">
-            Please configure your Supabase environment variables to proceed:
-          </p>
-          <div className="bg-slate-950 p-4 rounded-lg text-left text-xs font-mono text-indigo-300 space-y-1 select-all border border-slate-800 w-full">
-            <div>NEXT_PUBLIC_SUPABASE_URL=your_url</div>
-            <div>NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key</div>
-            <div>SUPABASE_SERVICE_ROLE_KEY=your_service_role_key</div>
-            <div>TELEGRAM_BOT_TOKEN=your_bot_token</div>
-          </div>
-          <p className="text-xs text-slate-400">
-            Create a <code className="bg-slate-950 px-1 py-0.5 rounded text-indigo-400">.env.local</code> file in the root directory.
-          </p>
-        </div>
-      </div>
-    );
+    return <SetupWizard />;
   }
 
   if (dbOffline) {
