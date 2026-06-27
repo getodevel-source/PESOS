@@ -3,6 +3,7 @@ const path = require('path')
 const { spawn } = require('child_process')
 const fs = require('fs')
 const os = require('os')
+const { applyUpdate } = require('./updater')
 
 let mainWindow = null
 let tray = null
@@ -185,10 +186,33 @@ function createTray() {
   })
 }
 
+// Watch for update completion files from next.js process
+function startUpdateMonitor() {
+  const pendingPath = path.join(os.homedir(), '.config', 'pesos', '.update-pending')
+  
+  setInterval(() => {
+    if (fs.existsSync(pendingPath)) {
+      try {
+        const filePath = fs.readFileSync(pendingPath, 'utf8').trim()
+        console.log(`Update trigger file detected. File to apply: ${filePath}`)
+        
+        // Remove trigger file to avoid loops
+        fs.unlinkSync(pendingPath)
+
+        // Apply update and exit
+        applyUpdate(filePath)
+      } catch (err) {
+        console.error('Failed to process update trigger:', err)
+      }
+    }
+  }, 3000)
+}
+
 app.on('ready', () => {
   startNextServer()
   createWindow()
   createTray()
+  startUpdateMonitor()
 })
 
 app.on('window-all-closed', () => {

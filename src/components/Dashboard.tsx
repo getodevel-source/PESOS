@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { LogOut, CheckCircle2, User, Cloud, Sun, CloudLightning, Calendar, CheckSquare, Smile, RefreshCw, X, LayoutDashboard, Award, BookOpen, DollarSign, Bot, Utensils } from 'lucide-react'
+import { LogOut, CheckCircle2, User, Cloud, Sun, CloudLightning, Calendar, CheckSquare, Smile, RefreshCw, X, LayoutDashboard, Award, BookOpen, DollarSign, Bot, Utensils, Download, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import TaskList, { Task } from './TaskList'
 import HabitList, { Habit, HabitLog } from './HabitList'
@@ -62,8 +62,76 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   // Close day modal state
   const [isCloseDayOpen, setIsCloseDayOpen] = useState(false)
 
+  // Update states
+  const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [latestVersion, setLatestVersion] = useState('')
+  const [assetUrl, setAssetUrl] = useState('')
+  const [filename, setFilename] = useState('')
+  const [updateProgress, setUpdateProgress] = useState(-1) // -1 means idle
+  const [updateError, setUpdateError] = useState<string | null>(null)
+
   const supabase = createClient()
   const todayStr = new Date().toLocaleDateString('sv-SE')
+
+  // Check for updates on mount
+  useEffect(() => {
+    const checkAppUpdate = async () => {
+      try {
+        const res = await fetch('/api/update')
+        const data = await res.json()
+        if (data.updateAvailable) {
+          setUpdateAvailable(true)
+          setLatestVersion(data.latestVersion)
+          setAssetUrl(data.assetUrl)
+          setFilename(data.filename)
+          if (data.progress !== undefined && data.progress >= 0) {
+            setUpdateProgress(data.progress)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check for updates:', err)
+      }
+    }
+    checkAppUpdate()
+  }, [])
+
+  // Poll progress when update is downloading
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    if (updateProgress >= 0 && updateProgress < 100) {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/update')
+          const data = await res.json()
+          if (data.progress !== undefined) {
+            setUpdateProgress(data.progress)
+          }
+        } catch (err) {
+          console.error('Failed to poll update progress:', err)
+        }
+      }, 1000)
+    }
+    return () => clearInterval(interval)
+  }, [updateProgress])
+
+  const handleStartUpdate = async () => {
+    setUpdateError(null)
+    setUpdateProgress(0)
+    try {
+      const res = await fetch('/api/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assetUrl, filename })
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Falló la descarga.')
+      }
+    } catch (err: any) {
+      setUpdateError(err.message)
+      setUpdateProgress(-1)
+    }
+  }
 
   // Notification states and refs
   const notifiedTasksRef = useRef<Set<string>>(new Set())
@@ -462,6 +530,54 @@ export default function Dashboard({ initialUser }: DashboardProps) {
             <LogOut className="h-3.5 w-3.5 shrink-0" />
             Cerrar Sesión
           </button>
+          {/* Update Section */}
+          {updateAvailable && (
+            <div className="p-2.5 rounded border border-indigo-500/20 bg-indigo-500/5 space-y-2 flex flex-col">
+              <div className="flex items-center gap-1.5 text-indigo-400">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Nueva actualización</span>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-snug">
+                Versión {latestVersion} disponible.
+              </p>
+              
+              {updateProgress === -1 ? (
+                <button
+                  type="button"
+                  onClick={handleStartUpdate}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-bold rounded transition-all shadow-md shadow-indigo-600/10"
+                >
+                  <Download className="h-3 w-3 shrink-0" />
+                  Descargar e Instalar
+                </button>
+              ) : (
+                <div className="space-y-1">
+                  <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className="bg-indigo-500 h-full transition-all duration-300"
+                      style={{ width: `${updateProgress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[8px] text-slate-500 font-medium">
+                    <span>Descargando...</span>
+                    <span>{updateProgress}%</span>
+                  </div>
+                  {updateProgress === 100 && (
+                    <span className="text-[8px] text-emerald-400 block font-semibold text-center animate-pulse mt-1">
+                      Aplicando actualización y reiniciando...
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {updateError && (
+                <span className="text-[8px] text-rose-400 block text-center mt-1">
+                  {updateError}
+                </span>
+              )}
+            </div>
+          )}
+
           <div className="text-[9px] text-center text-slate-500 hover:text-slate-400 transition-colors pt-1">
             Developed by{' '}
             <a

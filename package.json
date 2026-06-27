@@ -51,6 +51,7 @@
       "!node_modules/electron/**/*",
       "!node_modules/electron-builder/**/*"
     ],
+    "asar": false,
     "directories": {
       "output": "dist"
     },
