@@ -1,0 +1,45 @@
+schema: spec-driven
+
+# strict_tdd was disabled on the 2026-06-27 re-verification and re-enabled the
+# same day after commit f1b6bd9 (vitest scoped to src/, AI clients mocked in
+# the Telegram route test). Current `npm test`: 2 files, 13 tests, 0 failed.
+# See openspec/sdd-init/pesos.md section 7 ("Resolved test issues") for the
+# full resolution record. The `vite-tsconfig-paths` deprecation hint is still
+# present on every run and remains a non-blocking follow-up.
+strict_tdd: true
+
+context: |
+  Tech stack: Next.js 16.2.9 (App Router) + React 19.2.4 + TypeScript 5, Electron 42 desktop wrapper, Supabase (PostgreSQL) + better-sqlite3 hybrid store, OpenAI 6.45 + Google Gemini, Tailwind 4
+  Architecture: src/app App Router with src/app/api/* route handlers (Telegram webhook), RLS-protected multi-tenant Postgres schema with local SQLite mirror, single-user desktop app distributed via electron-builder (GitHub Releases)
+  Testing: Vitest 4.1.9 in node environment with globals, tsconfig path resolution, `npm test` runs `vitest run`. Default vitest 4 exclude is `['**/node_modules/**', '**/.git/**']` only — does NOT include `**/dist/**`, so electron-builder's dist/ output is scanned.
+  Style: ESLint 9 flat config with eslint-config-next, TypeScript strict mode, no Prettier configured
+
+rules:
+  proposal:
+    - Include rollback plan for any migration touching RLS or auth tables
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Document multi-tenant isolation and RLS strategy
+    - Read `node_modules/next/dist/docs/` before any Next.js 16 code (per project AGENTS.md)
+    - Address Electron + Next.js SSR interaction for any new IPC or window surface
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns in src/components and src/lib
+  verify:
+    - Verify RLS coverage for any new Postgres table
+    - Run `npm test` and report the raw pass/fail counts; do not trust counts that may include the dist/ duplication
+  archive:
+    - Warn before merging destructive RLS, migration, or auth deltas
+
+apply:
+  tdd: true
+  test_command: "npm test"
+
+verify:
+  test_command: "npm test"
+  build_command: "npm run build:electron"
+  coverage_threshold: 0
