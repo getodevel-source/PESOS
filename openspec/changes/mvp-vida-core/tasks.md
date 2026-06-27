@@ -39,10 +39,10 @@ Chain strategy: size-exception
 
 ## Phase 4 — Δ2 Dashboard auth gate
 
-- [ ] **4.1 [RED]** New `src/app/api/auth/handshake/route.test.ts` (1 smoke): mock `auth-gate`; `Host: 127.0.0.1:3000` → 200 + `Set-Cookie: session=…; HttpOnly; SameSite=Lax`. **Fails.**
-- [ ] **4.2 [GREEN]** New `src/lib/auth-gate.ts` (HMAC; secret at `~/.config/pesos/.auth-secret` `0o600`) + new `src/app/api/auth/handshake/route.ts` (loopback guard; cookie: `httpOnly:true, sameSite:'lax', path:'/', maxAge:86400`). **Passes.**
-- [ ] **4.3 [RED]** New `src/proxy.test.ts` (2 tests): T1 no cookie + `/dashboard` → 307 to `/setup`. T2 valid cookie + `/dashboard` → `NextResponse.next()`. Allow-list `/_next/`, `/api/auth/handshake`, `/favicon.ico`, `/logo.png`. **Fails.**
-- [ ] **4.4 [GREEN]** New `src/proxy.ts` (Next.js 16 `proxy` per `proxy.md:11` — NOT `middleware.ts`) + new `src/components/AuthGate.tsx` (client: on-mount POST to `/api/auth/handshake`). Modify `Dashboard.tsx` (drop `import AuthForm`, render `<AuthGate/>`). Modify `electron.js` (after `app.on('ready')`: `fetch('http://127.0.0.1:3000/api/auth/handshake', {method:'POST'})` with 3×1s retry). `npm test` = 22 pass.
+- [x] **4.1 [RED]** New `src/app/api/auth/handshake/route.test.ts` (1 smoke): mock `auth-gate`; `Host: 127.0.0.1:3000` → 200 + `Set-Cookie: session=…; HttpOnly; SameSite=Lax`. **Fails.**
+- [x] **4.2 [GREEN]** New `src/lib/auth-gate.ts` (HMAC; secret at `~/.config/pesos/.auth-secret` `0o600`) + new `src/app/api/auth/handshake/route.ts` (loopback guard; cookie: `httpOnly:true, sameSite:'lax', path:'/', maxAge:86400`). **Passes.**
+- [x] **4.3 [RED]** New `src/proxy.test.ts` (2 tests): T1 no cookie + `/dashboard` → 307 to `/setup`. T2 valid cookie + `/dashboard` → `NextResponse.next()`. Allow-list `/_next/`, `/api/auth/handshake`, `/favicon.ico`, `/logo.png`. **Fails.**
+- [x] **4.4 [GREEN]** New `src/proxy.ts` (Next.js 16 `proxy` per `proxy.md:11` — NOT `middleware.ts`) + new `src/components/AuthGate.tsx` (client: on-mount POST to `/api/auth/handshake`). Modify `Dashboard.tsx` (drop `import AuthForm`, render `<AuthGate/>`). Modify `electron.js` (after `app.on('ready')`: `fetch('http://127.0.0.1:3000/api/auth/handshake', {method:'POST'})` with 3×1s retry). `npm test` = 22 pass.
 
 ## Out-of-scope follow-ups
 

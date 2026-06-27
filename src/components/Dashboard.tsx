@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { LogOut, CheckCircle2, User, Cloud, Sun, CloudLightning, Calendar, CheckSquare, Smile, RefreshCw, X, LayoutDashboard, Award, BookOpen, DollarSign, Bot, Utensils, Download, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
+import AuthGate from './AuthGate'
 import TaskList, { Task } from './TaskList'
 import HabitList, { Habit, HabitLog } from './HabitList'
 import JournalReflection, { JournalEntry } from './JournalReflection'
@@ -384,6 +385,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   }, [])
 
   return (
+    <AuthGate>
     <div className={`min-h-screen flex text-slate-100 transition-all duration-1000 bg-gradient-to-br ${WEATHER_GRADIENTS[weather]}`} style={{ backgroundColor: '#020617' }}>
       {/* Sticky Vertical Left Sidebar */}
       <aside className="hidden md:flex flex-col w-60 border-r border-white/5 bg-slate-950/40 backdrop-blur-xl h-screen sticky top-0 shrink-0 select-none">
@@ -959,5 +961,6 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         </div>
       )}
     </div>
+    </AuthGate>
   )
 }

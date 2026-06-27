@@ -210,11 +210,32 @@ function startUpdateMonitor() {
   }, 3000)
 }
 
+// Δ2: trigger the local-only auth handshake after `next start` is up, so
+// the BrowserWindow's first navigation already has a session cookie. The
+// `proxy` (Next.js 16) will pass /dashboard through without a 307 redirect.
+// Retries 3× with 1s backoff to absorb the Next.js boot delay.
+async function attemptHandshake(retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch('http://127.0.0.1:3000/api/auth/handshake', { method: 'POST' })
+      if (r.ok) return
+    } catch {
+      // Next.js is not up yet — retry.
+    }
+    await new Promise((r) => setTimeout(r, 1000))
+  }
+}
+
 app.on('ready', () => {
   startNextServer()
   createWindow()
   createTray()
   startUpdateMonitor()
+  // Wait for Next.js to boot (createWindow has a 3s delay) then call the
+  // handshake. The BrowserWindow's first load happens inside createWindow.
+  if (!isDev) {
+    setTimeout(() => { attemptHandshake().catch(() => {}) }, 4000)
+  }
 })
 
 app.on('window-all-closed', () => {
