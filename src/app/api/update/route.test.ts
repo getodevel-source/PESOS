@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mock the Electron main process updater module before importing the route.
 // The route uses file-based state + request file IPC, so we just stub the
 // bridge functions and assert the route calls them with the right shape.
-vi.mock('../../../../updater', () => ({
+vi.mock('../../../../updater-bridge', () => ({
   getState: vi.fn(),
   requestCheck: vi.fn(),
   requestDownload: vi.fn(),
@@ -11,7 +11,7 @@ vi.mock('../../../../updater', () => ({
 }))
 
 import { GET, POST } from './route'
-import { getState, requestCheck, requestDownload, requestInstall } from '../../../../updater'
+import { getState, requestCheck, requestDownload, requestInstall } from '../../../../updater-bridge'
 
 const mockedGetState = vi.mocked(getState)
 const mockedRequestCheck = vi.mocked(requestCheck)
