@@ -1,6 +1,6 @@
 {
   "name": "pesos",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "author": {
     "name": "getodevel",
@@ -47,6 +47,13 @@
   "build": {
     "appId": "com.getodevel.pesos",
     "productName": "PESOS",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "getodevel-source",
+        "repo": "PESOS"
+      }
+    ],
     "files": [
       "**/*",
       "!.next/cache/**/*",
