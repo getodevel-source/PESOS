@@ -32,10 +32,10 @@ Chain strategy: size-exception
 
 ## Phase 3 — Δ3 AI provider config
 
-- [ ] **3.1 [RED]** New `src/lib/ai-config.test.ts` (2 tests): T1 write `{provider:'opencode'}` to tmp + `vi.spyOn(os, 'homedir')` → assert `provider==='opencode'`. T2 missing file → default `{provider:'gemini'}`, no throw. **Fails.**
-- [ ] **3.2 [GREEN]** New `src/lib/ai-config.ts`: pure `getDefaultProvider(): AIConfig` reads `~/.config/pesos/.ai-config.json`; default on missing/bad/wrong-provider; never throws. **Passes.**
-- [ ] **3.3 [GREEN]** Replace `provider = 'gemini'` at `ai-chat/route.ts:211` with `const cfg = getDefaultProvider(); const provider = bodyProvider ?? cfg.provider`. Add comment to `ai-chat/validate/route.ts`: "Δ3: 401 hard-fail; no cross-provider retry". `npm test` = 16 pass.
-- [ ] **3.4 [GREEN]** Modify `telegram/route.ts:getAIResponse` (lines 124-163): accept `providerOverride?: AIProvider`; voice forces `gemini`; else `getDefaultProvider()` when no override.
+- [x] **3.1 [RED]** New `src/lib/ai-config.test.ts` (2 tests): T1 write `{provider:'opencode'}` to tmp + `vi.spyOn(os, 'homedir')` → assert `provider==='opencode'`. T2 missing file → default `{provider:'gemini'}`, no throw. **Fails.**
+- [x] **3.2 [GREEN]** New `src/lib/ai-config.ts`: pure `getDefaultProvider(): AIConfig` reads `~/.config/pesos/.ai-config.json`; default on missing/bad/wrong-provider; never throws. **Passes.**
+- [x] **3.3 [GREEN]** Replace `provider = 'gemini'` at `ai-chat/route.ts:211` with `const cfg = getDefaultProvider(); const provider = bodyProvider ?? cfg.provider`. Add comment to `ai-chat/validate/route.ts`: "Δ3: 401 hard-fail; no cross-provider retry". `npm test` = 16 pass.
+- [x] **3.4 [GREEN]** Modify `telegram/route.ts:getAIResponse` (lines 124-163): accept `providerOverride?: AIProvider`; voice forces `gemini`; else `getDefaultProvider()` when no override.
 
 ## Phase 4 — Δ2 Dashboard auth gate
 

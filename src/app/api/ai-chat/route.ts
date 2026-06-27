@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { getDefaultProvider } from '@/lib/ai-config'
 
 // Supported providers
 // - 'gemini'   → Google AI (GOOGLE_AI_API_KEY)
@@ -208,7 +209,15 @@ ${lastTransactions.length === 0
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, userId, provider = 'gemini', model: modelName, monthlyBudgetLimit } = await request.json()
+    // Δ3: the body `provider` (if provided) overrides the explicit user
+    // default from ~/.config/pesos/.ai-config.json. If neither is set,
+    // we fall back to the explicit default, then to the `getDefaultProvider`
+    // safe default of { provider: 'gemini' }. 401 from the chosen provider
+    // is a hard-fail (no silent cross-provider retry) — see validate/route.ts
+    // for the same contract.
+    const { messages, userId, provider: bodyProvider, model: modelName, monthlyBudgetLimit } = await request.json()
+    const cfg = getDefaultProvider()
+    const provider = bodyProvider ?? cfg.provider
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Mensajes inválidos.' }, { status: 400 })

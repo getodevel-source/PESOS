@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { getDefaultProvider, type AIProvider } from '@/lib/ai-config'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,26 +124,38 @@ ${habits.length === 0 ? '  • Sin hábitos' : habits.map((h: any) => `  • ${c
 
 async function getAIResponse(
   userMessage: string | { inlineData: { data: string; mimeType: string } },
-  systemPrompt: string
+  systemPrompt: string,
+  providerOverride?: AIProvider
 ): Promise<string> {
-  // Prefer Gemini if available, fall back to OpenCode Go
-  if (process.env.GOOGLE_AI_API_KEY) {
+  // Δ3: voice (non-string userMessage) always routes to Gemini per the
+  // `telegram-voice-transcription` spec — OpenCode Go is text-only.
+  // For text, the explicit user default (or the override, if provided)
+  // determines the provider. 401 is a hard-fail (no cross-provider retry).
+  const isVoice = typeof userMessage !== 'string'
+  const resolvedProvider: AIProvider = isVoice
+    ? 'gemini'
+    : (providerOverride ?? getDefaultProvider().provider)
+
+  if (resolvedProvider === 'gemini') {
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      return '⚠️ No hay API key de Google configurada. Agregá GOOGLE_AI_API_KEY en .env.local.'
+    }
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY)
     const model = genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       systemInstruction: systemPrompt,
     })
-    const content = typeof userMessage === 'string'
-      ? userMessage
-      : [userMessage, { text: 'Procesá este audio de voz y respondé siguiendo el system prompt.' }]
+    const content = isVoice
+      ? [userMessage, { text: 'Procesá este audio de voz y respondé siguiendo el system prompt.' }]
+      : userMessage
 
     const result = await model.generateContent(content)
     return result.response.text()
   }
 
-  if (process.env.OPENCODE_GO_API_KEY) {
-    if (typeof userMessage !== 'string') {
-      return '⚠️ El procesamiento de voz requiere configurar GOOGLE_AI_API_KEY para utilizar Gemini multimodal.'
+  if (resolvedProvider === 'opencode') {
+    if (!process.env.OPENCODE_GO_API_KEY) {
+      return '⚠️ No hay API key de OpenCode Go configurada. Agregá OPENCODE_GO_API_KEY en .env.local.'
     }
     const openai = new OpenAI({
       baseURL: 'https://opencode.ai/zen/go/v1',
@@ -153,7 +166,7 @@ async function getAIResponse(
       model: 'opencode-go/deepseek-v4-flash',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
+        { role: 'user', content: userMessage as string },
       ],
     })
     return completion.choices[0]?.message?.content || 'Sin respuesta.'

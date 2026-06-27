@@ -3,6 +3,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Δ3: 401 hard-fail; do not add cross-provider retry on failure.
+// The 401 from the chosen provider's SDK is a hard-fail so wrong-key bugs
+// surface immediately. The other provider's key is NEVER consulted as a
+// fallback. This contract is intentional (proposal Assumption 3).
+
 export async function POST(request: NextRequest) {
   try {
     const { provider } = await request.json()
