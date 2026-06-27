@@ -44,7 +44,9 @@ function startNextServer() {
   const nextBin = path.join(__dirname, 'node_modules', 'next', 'dist', 'bin', 'next')
   nextProcess = spawn('node', [nextBin, 'start', '-p', '3000'], {
     cwd: __dirname,
-    env: { ...process.env, NODE_ENV: 'production' }
+    // Force production mode to prevent Turbopack dev server from starting
+    // and attempting to write to the read-only AppImage filesystem
+    env: { ...process.env, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' }
   })
 
   nextProcess.stdout.on('data', (data) => {

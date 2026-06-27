@@ -1,6 +1,6 @@
 {
   "name": "pesos",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "author": {
     "name": "getodevel",
@@ -14,6 +14,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "electron": "electron .",
+    "build:electron": "next build && rm -rf .next/dev .next/cache && electron-builder",
     "electron-pack": "electron-builder"
   },
   "dependencies": {
@@ -48,6 +49,9 @@
     "files": [
       "**/*",
       "!.next/cache/**/*",
+      "!.next/dev/**/*",
+      "!.next/trace/**/*",
+      "!.next/trace-build/**/*",
       "!node_modules/electron/**/*",
       "!node_modules/electron-builder/**/*"
     ],
