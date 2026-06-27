@@ -179,12 +179,16 @@ case "$PKG_TYPE" in
         ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
         mkdir -p "$ICON_DIR"
         # Intentar extraer el ícono directamente del AppImage
-        cd /tmp && "$INSTALL_PATH" --appimage-extract "*.png" >/dev/null 2>&1 || true
-        EXTRACTED_ICON=$(find /tmp/squashfs-root -name "*.png" 2>/dev/null | head -1)
+        cd /tmp
+        rm -rf squashfs-root
+        "$INSTALL_PATH" --appimage-extract "usr/share/icons/hicolor/*/apps/pesos.png" >/dev/null 2>&1 || true
+        EXTRACTED_ICON=$(find /tmp/squashfs-root -name "pesos.png" 2>/dev/null | head -1)
         if [ -n "$EXTRACTED_ICON" ]; then
             cp "$EXTRACTED_ICON" "$ICON_DIR/pesos.png"
             rm -rf /tmp/squashfs-root
             ok "Ícono extraído e instalado."
+        else
+            warn "No se pudo extraer el ícono automáticamente. Es posible que falte la dependencia FUSE (paquete 'fuse2' en Arch o 'libfuse2' en Ubuntu)."
         fi
         cd - >/dev/null
 
@@ -235,11 +239,12 @@ echo ""
 echo -e "  ${BOLD}Próximos pasos:${RESET}"
 echo -e "  1. Buscá ${CYAN}PESOS${RESET} en el menú de aplicaciones o lanzalo desde terminal:"
 
-if [ "$PKG_TYPE" = "portable" ]; then
+if [ "$PKG_TYPE" = "AppImage" ] || [ "$PKG_TYPE" = "portable" ]; then
     echo -e "     ${CYAN}pesos${RESET}"
 else
     echo -e "     ${CYAN}pesos${RESET}  (o buscalo en tu lanzador de apps)"
 fi
+
 
 echo ""
 echo -e "  2. La primera vez que lo abrás, ${BOLD}configurá tus variables de entorno${RESET}"
