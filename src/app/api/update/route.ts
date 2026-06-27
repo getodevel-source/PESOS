@@ -50,12 +50,16 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { assetUrl, filename } = await request.json()
+    // SECURITY FIX: Re-verify update and get trusted assetUrl from GitHub
+    // Do NOT trust the client payload (prevents RCE via forged payload)
+    const current = getCurrentVersion()
+    const updateInfo = await checkUpdate(current)
 
-    if (!assetUrl || !filename) {
-      return NextResponse.json({ error: 'URL y nombre de archivo requeridos.' }, { status: 400 })
+    if (!updateInfo.updateAvailable || !updateInfo.assetUrl || !updateInfo.filename) {
+      return NextResponse.json({ error: 'No hay actualizaciones válidas disponibles o URL no válida.' }, { status: 400 })
     }
 
+    const { assetUrl, filename } = updateInfo
     const tempDest = path.join(os.tmpdir(), filename)
 
     // Run download in background asynchronously

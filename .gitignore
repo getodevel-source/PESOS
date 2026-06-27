@@ -43,4 +43,4 @@ next-env.d.ts
 # logs and agent files
 .next-dev.log
 .atl/
-
+dist/

@@ -42,7 +42,7 @@ function startNextServer() {
 
   // In production, start the packaged Next.js server
   const nextBin = path.join(__dirname, 'node_modules', 'next', 'dist', 'bin', 'next')
-  nextProcess = spawn('node', [nextBin, 'start', '-p', '3000'], {
+  nextProcess = spawn('node', [nextBin, 'start', '-H', '127.0.0.1', '-p', '3000'], {
     cwd: __dirname,
     // Force production mode to prevent Turbopack dev server from starting
     // and attempting to write to the read-only AppImage filesystem

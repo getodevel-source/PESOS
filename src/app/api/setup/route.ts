@@ -4,6 +4,12 @@ import path from 'path'
 import os from 'os'
 import { loadUserEnv } from '@/lib/env-loader'
 
+// Helper to sanitize environment variables to prevent Env Injection
+function sanitizeEnvValue(val: string): string {
+  if (!val) return ''
+  return val.replace(/\r?\n/g, '').trim()
+}
+
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
@@ -53,11 +59,11 @@ export async function POST(request: NextRequest) {
 
     // Overwrite only the keys the user provided
     if (telegramBotToken !== undefined && telegramBotToken !== '')
-      lines['TELEGRAM_BOT_TOKEN'] = telegramBotToken
+      lines['TELEGRAM_BOT_TOKEN'] = sanitizeEnvValue(telegramBotToken)
     if (googleAiApiKey !== undefined && googleAiApiKey !== '')
-      lines['GOOGLE_AI_API_KEY'] = googleAiApiKey
+      lines['GOOGLE_AI_API_KEY'] = sanitizeEnvValue(googleAiApiKey)
     if (opencodeApiKey !== undefined && opencodeApiKey !== '')
-      lines['OPENCODE_GO_API_KEY'] = opencodeApiKey
+      lines['OPENCODE_GO_API_KEY'] = sanitizeEnvValue(opencodeApiKey)
 
     // Rebuild .env.local
     const envContent =

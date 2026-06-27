@@ -64,6 +64,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
   // Update states
   const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
   const [latestVersion, setLatestVersion] = useState('')
   const [assetUrl, setAssetUrl] = useState('')
   const [filename, setFilename] = useState('')
@@ -73,27 +74,31 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
 
-  // Check for updates on mount
-  useEffect(() => {
-    const checkAppUpdate = async () => {
-      try {
-        const res = await fetch('/api/update')
-        const data = await res.json()
-        if (data.updateAvailable) {
-          setUpdateAvailable(true)
-          setLatestVersion(data.latestVersion)
-          setAssetUrl(data.assetUrl)
-          setFilename(data.filename)
-          if (data.progress !== undefined && data.progress >= 0) {
-            setUpdateProgress(data.progress)
-          }
+  const checkAppUpdate = async () => {
+    if (isCheckingUpdate) return
+    setIsCheckingUpdate(true)
+    setUpdateError(null)
+    try {
+      const res = await fetch('/api/update')
+      const data = await res.json()
+      if (data.updateAvailable) {
+        setUpdateAvailable(true)
+        setLatestVersion(data.latestVersion)
+        setAssetUrl(data.assetUrl)
+        setFilename(data.filename)
+        if (data.progress !== undefined && data.progress >= 0) {
+          setUpdateProgress(data.progress)
         }
-      } catch (err) {
-        console.error('Failed to check for updates:', err)
+      } else {
+        alert('Ya tienes la última versión instalada.')
       }
+    } catch (err) {
+      console.error('Failed to check for updates:', err)
+      alert('Error al buscar actualizaciones.')
+    } finally {
+      setIsCheckingUpdate(false)
     }
-    checkAppUpdate()
-  }, [])
+  }
 
   // Poll progress when update is downloading
   useEffect(() => {
@@ -523,6 +528,14 @@ export default function Dashboard({ initialUser }: DashboardProps) {
               {initialUser.email}
             </span>
           </div>
+          <button
+            onClick={checkAppUpdate}
+            disabled={isCheckingUpdate}
+            className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-indigo-500/20 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 text-[10px] font-semibold rounded transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
+            {isCheckingUpdate ? 'Buscando...' : 'Buscar actualizaciones'}
+          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-red-500/20 hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-[10px] font-semibold rounded transition-all"
