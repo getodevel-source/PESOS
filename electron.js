@@ -2,15 +2,19 @@ const { app, BrowserWindow, Tray, Menu } = require('electron')
 const path = require('path')
 const { spawn } = require('child_process')
 const fs = require('fs')
+const os = require('os')
 
 let mainWindow = null
 let tray = null
 let nextProcess = null
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
-// Load local environment variables from .env.local on startup
+// Load local environment variables from writable user config directory on startup
 function loadEnv() {
-  const envPath = path.join(__dirname, '.env.local')
+  const userEnvPath = path.join(os.homedir(), '.config', 'pesos', '.env.local')
+  const devEnvPath = path.join(__dirname, '.env.local')
+  const envPath = fs.existsSync(userEnvPath) ? userEnvPath : devEnvPath
+
   if (fs.existsSync(envPath)) {
     const content = fs.readFileSync(envPath, 'utf8')
     content.split('\n').forEach((line) => {
@@ -19,11 +23,11 @@ function loadEnv() {
       const parts = line.split('=')
       if (parts.length >= 2) {
         const key = parts[0].trim()
-        const value = parts.slice(1).join('=').trim()
+        const value = parts.slice(1).join('=').trim().replace(/^["']|["']$/g, '')
         process.env[key] = value
       }
     })
-    console.log('Loaded environment variables from .env.local')
+    console.log(`Loaded environment variables from: ${envPath}`)
   }
 }
 

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
+import { loadUserEnv } from '@/lib/env-loader'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  // Ensure we have loaded the variables
+  loadUserEnv()
+  
   // Returns which env vars are currently configured (values masked)
   return NextResponse.json({
     telegramBotToken: !!process.env.TELEGRAM_BOT_TOKEN,
@@ -24,8 +29,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const configDir = path.join(os.homedir(), '.config', 'pesos')
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true })
+    }
+
     // Read existing .env.local if it exists to preserve any unknown keys
-    const envPath = path.join(process.cwd(), '.env.local')
+    const envPath = path.join(configDir, '.env.local')
     const lines: Record<string, string> = {}
 
     if (fs.existsSync(envPath)) {
@@ -58,6 +68,9 @@ export async function POST(request: NextRequest) {
       '\n'
 
     fs.writeFileSync(envPath, envContent, 'utf-8')
+
+    // Force reload active memory config
+    loadUserEnv()
 
     return NextResponse.json({ success: true })
   } catch (err: unknown) {

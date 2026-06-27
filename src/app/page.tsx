@@ -1,3 +1,4 @@
+import "@/lib/env-loader";
 import Dashboard from "@/components/Dashboard";
 import SetupWizard from "@/components/SetupWizard";
 

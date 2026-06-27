@@ -1,3 +1,4 @@
+import '@/lib/env-loader'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
