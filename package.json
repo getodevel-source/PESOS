@@ -1,11 +1,12 @@
 {
   "name": "pesos",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "author": {
     "name": "getodevel",
     "email": "getodevel@proton.me"
   },
+  "repository": "getodevel-source/PESOS",
   "main": "electron.js",
   "scripts": {
     "dev": "next dev",
