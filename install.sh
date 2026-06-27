@@ -167,7 +167,7 @@ case "$PKG_TYPE" in
         $INSTALL_CMD "${TMPDIR_PESOS}/${FILENAME}"
         ok "${APP_NAME} instalado con rpm/dnf."
         ;;
-    portable)
+    AppImage|portable)
         # AppImage: instalar en ~/.local/bin con nombre limpio
         INSTALL_PATH="$HOME/.local/bin/pesos"
         mkdir -p "$HOME/.local/bin"
