@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Bot, Send, User, Loader2, Sparkles, X, Settings, ChevronDown, HelpCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -85,7 +85,7 @@ export default function ChatBot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }: any) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { LogOut, CheckCircle2, User, Cloud, Sun, CloudLightning, Calendar, CheckSquare, Smile, RefreshCw, X, LayoutDashboard, Award, BookOpen, DollarSign, Bot, Utensils, Download, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import TaskList, { Task } from './TaskList'
@@ -70,7 +70,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const [updateProgress, setUpdateProgress] = useState(-1) // -1 means idle
   const [updateError, setUpdateError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
 
   // Check for updates on mount
