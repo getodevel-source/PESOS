@@ -44,3 +44,6 @@ next-env.d.ts
 .next-dev.log
 .atl/
 dist/
+
+# local scripts with embedded secrets (do NOT commit)
+test-opencode.js
