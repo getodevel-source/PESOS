@@ -65,6 +65,40 @@ vi.mock('@/lib/supabase', () => {
   }
 })
 
+// Plain (non-vi.fn) reply shims hoisted above vi.mock so they survive the
+// suite's `vi.resetAllMocks()` in beforeEach. They only need to return a
+// constant value — no call-history assertions are made on them.
+const { openaiCreateCompletion, googleGenerateContent } = vi.hoisted(() => ({
+  openaiCreateCompletion: async () => ({
+    choices: [{ message: { content: 'Mock reply' } }],
+  }),
+  googleGenerateContent: async () => ({
+    response: { text: () => 'Mock reply' },
+  }),
+}))
+
+vi.mock('openai', () => {
+  class OpenAI {
+    chat = { completions: { create: openaiCreateCompletion } }
+    constructor(_opts: unknown) {
+      // ignore config
+    }
+  }
+  return { default: OpenAI, OpenAI }
+})
+
+vi.mock('@google/generative-ai', () => {
+  class GoogleGenerativeAI {
+    getGenerativeModel() {
+      return { generateContent: googleGenerateContent }
+    }
+    constructor(_apiKey: unknown) {
+      // ignore api key
+    }
+  }
+  return { GoogleGenerativeAI }
+})
+
 interface MockedSupabaseModule {
   _mocks: {
     mockInsert: ReturnType<typeof vi.fn>
