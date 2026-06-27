@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Δ1: public `setWebhook` is removed. The bot is polled locally by
+// `electron.js` (`startTelegramPoll`), so this endpoint only validates
+// the bot token via `getMe` and returns a deprecation note telling the
+// operator to restart the desktop app to recover the local-poll flow.
 export async function POST(request: NextRequest) {
   try {
     const { botToken, origin } = await request.json()
@@ -26,35 +30,18 @@ export async function POST(request: NextRequest) {
     const botUsername = meData.result.username
     const botFirstName = meData.result.first_name
 
-    // 2. Configure webhook to point to our Next.js backend
-    const webhookUrl = `${origin}/api/telegram`
-    const setWebhookRes = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: webhookUrl,
-      }),
+    // 2. Return the deprecation note. We DO NOT call `setWebhook` because
+    // public webhook registration is disabled in v1 — the bot is polled
+    // locally by `electron.js` (see `startTelegramPoll`). To recover after
+    // a previous public webhook registration, `startTelegramPoll` calls
+    // `deleteWebhook` on app-ready.
+    return NextResponse.json({
+      deprecated: true,
+      message:
+        'Public setWebhook is disabled. The Telegram bot is polled locally by electron.js (startTelegramPoll). Restart the desktop app to recover.',
+      username: botUsername,
+      name: botFirstName,
     })
-
-    const webhookData = await setWebhookRes.json()
-
-    if (webhookData.ok) {
-      return NextResponse.json({
-        success: true,
-        username: botUsername,
-        name: botFirstName,
-        webhookUrl,
-        message: `¡Pesito se conectó con éxito!`,
-      })
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          error: webhookData.description || 'Error de Telegram al configurar el webhook.',
-        },
-        { status: 400 }
-      )
-    }
   } catch (error: any) {
     console.error('Telegram Webhook Setup Error:', error)
     return NextResponse.json({ error: 'Error interno del servidor al configurar el webhook.' }, { status: 500 })

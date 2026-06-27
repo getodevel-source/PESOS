@@ -25,10 +25,10 @@ Chain strategy: size-exception
 
 ## Phase 2 — Δ1 Telegram loopback + setWebhook removal
 
-- [ ] **2.1 [RED]** New `src/app/api/telegram/setup/route.test.ts`: returns `{deprecated, message, username, name}`; `setWebhook` never called (mock `fetch`). **Fails.**
-- [ ] **2.2 [GREEN]** Drop `setWebhook` fetch (lines 31-37) + `webhookUrl` in `setup/route.ts`; return deprecation JSON. **Passes.**
-- [ ] **2.3 [RED]** Add 2 tests to `telegram/route.test.ts`: `loopback host accepted` (`Host: 127.0.0.1:3000` → 200) + `remote host rejected` (`Host: evil.example.com` → 403). **Fails.**
-- [ ] **2.4 [GREEN]** Insert loopback guard at top of `telegram/route.ts` `POST` (before line 473): read `host` + `x-forwarded-for`; 403 unless loopback or `TELEGRAM_ALLOW_REMOTE=1`. `npm test` telegram = 10 pass.
+- [x] **2.1 [RED]** New `src/app/api/telegram/setup/route.test.ts`: returns `{deprecated, message, username, name}`; `setWebhook` never called (mock `fetch`). **Fails.**
+- [x] **2.2 [GREEN]** Drop `setWebhook` fetch (lines 31-37) + `webhookUrl` in `setup/route.ts`; return deprecation JSON. **Passes.**
+- [x] **2.3 [RED]** Add 2 tests to `telegram/route.test.ts`: `loopback host accepted` (`Host: 127.0.0.1:3000` → 200) + `remote host rejected` (`Host: evil.example.com` → 403). **Fails.**
+- [x] **2.4 [GREEN]** Insert loopback guard at top of `telegram/route.ts` `POST` (before line 473): read `host` + `x-forwarded-for`; 403 unless loopback or `TELEGRAM_ALLOW_REMOTE=1`. `npm test` telegram = 10 pass.
 
 ## Phase 3 — Δ3 AI provider config
 

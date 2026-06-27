@@ -466,6 +466,30 @@ async function handleCommand(
 
 export async function POST(request: NextRequest) {
   try {
+    // ─── Δ1: loopback guard (runs before the secret check) ──────────────────
+    // `request.ip` was removed in Next.js 15 (per node_modules/next/dist/docs
+    // for next-request), so we use the `host` header as the loopback signal
+    // and honor `x-forwarded-for` only when the operator opts in to remote
+    // (TELEGRAM_ALLOW_REMOTE=1) — typically for ngrok/cloudflared tunnels.
+    // `localhost` is a DNS alias for 127.0.0.1, so it's accepted as loopback.
+    // We fall back to the URL's host when the header is missing (test envs
+    // don't always set it; production sets it from the BrowserWindow).
+    const headerHost = request.headers.get('host') ?? ''
+    const urlHost = (() => {
+      try { return new URL(request.url).host } catch { return '' }
+    })()
+    const host = headerHost || urlHost
+    const xff = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null
+    const isLoopback =
+      host.startsWith('127.0.0.1') ||
+      host.startsWith('localhost') ||
+      host.startsWith('[::1]') ||
+      xff === '127.0.0.1' ||
+      xff === '::1'
+    if (!isLoopback && process.env.TELEGRAM_ALLOW_REMOTE !== '1') {
+      return new NextResponse('Forbidden: loopback only', { status: 403 })
+    }
+
     const { searchParams } = new URL(request.url)
     const secret = searchParams.get('secret')
     const token = process.env.TELEGRAM_BOT_TOKEN

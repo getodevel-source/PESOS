@@ -313,4 +313,29 @@ describe('Telegram Webhook Route Handler', () => {
     const json = await response.json()
     expect(json.error).toBe('Internal Server Error')
   })
+
+  // ─── Δ1: loopback guard ────────────────────────────────────────────────────
+  it('loopback host accepted: Host: 127.0.0.1:3000 → 200', async () => {
+    const payload = { message: { text: 'loopback-ok' } }
+    const request = new NextRequest('http://127.0.0.1:3000/api/telegram?secret=test_token', {
+      method: 'POST',
+      headers: { host: '127.0.0.1:3000' },
+      body: JSON.stringify(payload),
+    })
+
+    const response = await POST(request)
+    expect(response.status).toBe(200)
+  })
+
+  it('remote host rejected: Host: evil.example.com → 403 (regardless of secret)', async () => {
+    const payload = { message: { text: 'remote-attack' } }
+    const request = new NextRequest('http://evil.example.com/api/telegram?secret=test_token', {
+      method: 'POST',
+      headers: { host: 'evil.example.com' },
+      body: JSON.stringify(payload),
+    })
+
+    const response = await POST(request)
+    expect(response.status).toBe(403)
+  })
 })
