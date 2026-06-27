@@ -1,171 +1,255 @@
-const https = require('https')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
-const { spawn } = require('child_process')
+const { app } = require('electron')
+const { autoUpdater } = require('electron-updater')
 
-const REPO = 'getodevel-source/PESOS'
+// File-based state bridge so the Next.js renderer (which has no IPC by
+// default) can observe the Electron-updater state by reading these files.
+// The bridge is intentional: keeping it lets the existing `route.ts` and
+// Dashboard UI work without exposing `ipcRenderer` via a preload script.
 
-// Simple semver comparison: returns true if latest > current
-function isOutdated(current, latest) {
-  const c = current.replace(/^v/, '').split('.').map(Number)
-  const l = latest.replace(/^v/, '').split('.').map(Number)
-  for (let i = 0; i < 3; i++) {
-    if (l[i] > (c[i] || 0)) return true
-    if (l[i] < (c[i] || 0)) return false
+const STATE_DIR = path.join(os.homedir(), '.config', 'pesos')
+const STATE_PATH = path.join(STATE_DIR, 'update-state.json')
+const INSTALL_REQUEST_PATH = path.join(STATE_DIR, 'update-install-request')
+const CHECK_REQUEST_PATH = path.join(STATE_DIR, 'update-check-request')
+const DOWNLOAD_REQUEST_PATH = path.join(STATE_DIR, 'update-download-request')
+
+function ensureStateDir() {
+  if (!fs.existsSync(STATE_DIR)) {
+    fs.mkdirSync(STATE_DIR, { recursive: true })
   }
-  return false
 }
 
-// Fetch latest release info from GitHub API
-function checkUpdate(currentVersion) {
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.github.com',
-      path: `/repos/${REPO}/releases/latest`,
-      headers: { 'User-Agent': 'PESOS-Updater' }
-    }
+function getCurrentVersion() {
+  try {
+    const pkgPath = path.join(__dirname, 'package.json')
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+    return pkg.version
+  } catch {
+    return '0.0.0'
+  }
+}
 
-    https.get(options, (res) => {
-      if (res.statusCode !== 200) {
-        reject(new Error(`GitHub API returned status ${res.statusCode}`))
-        return
+function writeState(partial) {
+  ensureStateDir()
+  const payload = {
+    status: 'idle',
+    currentVersion: getCurrentVersion(),
+    availableVersion: null,
+    progress: 0,
+    releaseNotes: null,
+    error: null,
+    timestamp: Date.now(),
+    ...partial
+  }
+  try {
+    fs.writeFileSync(STATE_PATH, JSON.stringify(payload, null, 2), 'utf8')
+  } catch (err) {
+    console.error('updater: failed to write state:', err)
+  }
+  return payload
+}
+
+function readState() {
+  try {
+    if (fs.existsSync(STATE_PATH)) {
+      return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'))
+    }
+  } catch (err) {
+    console.error('updater: failed to read state:', err)
+  }
+  return {
+    status: 'idle',
+    currentVersion: getCurrentVersion(),
+    availableVersion: null,
+    progress: 0,
+    releaseNotes: null,
+    error: null,
+    timestamp: 0
+  }
+}
+
+let _checkInFlight = false
+let _downloadInFlight = false
+
+function setupAutoUpdater({ checkOnStart = true, initialCheckDelayMs = 5000 } = {}) {
+  // Configure
+  autoUpdater.logger = console
+  // User-controlled download: the renderer drives the lifecycle via the
+  // request files. This avoids surprise downloads on every launch.
+  autoUpdater.autoDownload = false
+  // Install downloaded update when the user quits (after we call quitAndInstall
+  // explicitly below; autoInstallOnAppQuit is a safety net).
+  autoUpdater.autoInstallOnAppQuit = true
+
+  // Initial state
+  writeState({ status: 'idle' })
+
+  // ─── electron-updater events ─────────────────────────────────────────────
+
+  autoUpdater.on('checking-for-update', () => {
+    writeState({ status: 'checking' })
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    writeState({
+      status: 'available',
+      availableVersion: info && info.version ? info.version : null,
+      releaseNotes: info && info.releaseNotes ? String(info.releaseNotes) : null,
+      progress: 0,
+      error: null
+    })
+  })
+
+  autoUpdater.on('update-not-available', (info) => {
+    writeState({
+      status: 'idle',
+      availableVersion: null,
+      progress: 0,
+      error: null
+    })
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    writeState({
+      status: 'downloading',
+      progress: Math.round((progress && progress.percent) || 0)
+    })
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    writeState({
+      status: 'downloaded',
+      availableVersion: info && info.version ? info.version : null,
+      progress: 100
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    writeState({
+      status: 'error',
+      error: (err && err.message) ? err.message : String(err)
+    })
+  })
+
+  // ─── Renderer request polling (file-based IPC) ───────────────────────────
+
+  setInterval(() => {
+    // 1) Check request
+    if (fs.existsSync(CHECK_REQUEST_PATH)) {
+      try {
+        fs.unlinkSync(CHECK_REQUEST_PATH)
+        if (!_checkInFlight) {
+          _checkInFlight = true
+          autoUpdater.checkForUpdates()
+            .catch((err) => {
+              writeState({ status: 'error', error: err && err.message ? err.message : String(err) })
+            })
+            .finally(() => {
+              _checkInFlight = false
+            })
+        }
+      } catch (err) {
+        console.error('updater: failed to handle check request:', err)
       }
+    }
 
-      let data = ''
-      res.on('data', chunk => data += chunk)
-      res.on('end', () => {
-        try {
-          const release = JSON.parse(data)
-          const latestVersion = release.tag_name
-          const updateAvailable = isOutdated(currentVersion, latestVersion)
-
-          // Find the asset link based on platform
-          let assetUrl = ''
-          let filename = ''
-          const platform = process.platform
-
-          if (platform === 'linux') {
-            const asset = release.assets.find(a => a.name.endsWith('.AppImage'))
-            if (asset) {
-              assetUrl = asset.browser_download_url
-              filename = asset.name
-            }
-          } else if (platform === 'win32') {
-            const asset = release.assets.find(a => a.name.endsWith('.exe'))
-            if (asset) {
-              assetUrl = asset.browser_download_url
-              filename = asset.name
-            }
-          } else if (platform === 'darwin') {
-            const asset = release.assets.find(a => a.name.endsWith('.zip'))
-            if (asset) {
-              assetUrl = asset.browser_download_url
-              filename = asset.name
-            }
-          }
-
-          resolve({
-            updateAvailable,
-            latestVersion,
-            assetUrl,
-            filename,
-            body: release.body
-          })
-        } catch (err) {
-          reject(err)
+    // 2) Download request
+    if (fs.existsSync(DOWNLOAD_REQUEST_PATH)) {
+      try {
+        fs.unlinkSync(DOWNLOAD_REQUEST_PATH)
+        if (!_downloadInFlight) {
+          _downloadInFlight = true
+          autoUpdater.downloadUpdate()
+            .catch((err) => {
+              writeState({ status: 'error', error: err && err.message ? err.message : String(err) })
+            })
+            .finally(() => {
+              _downloadInFlight = false
+            })
         }
+      } catch (err) {
+        console.error('updater: failed to handle download request:', err)
+      }
+    }
+
+    // 3) Install request
+    if (fs.existsSync(INSTALL_REQUEST_PATH)) {
+      try {
+        fs.unlinkSync(INSTALL_REQUEST_PATH)
+        // quitAndInstall will trigger app relaunch with the new version.
+        // isSilent=false so the user sees the OS-level update UI; isForceRunAfter=true.
+        autoUpdater.quitAndInstall(false, true)
+      } catch (err) {
+        console.error('updater: failed to handle install request:', err)
+      }
+    }
+  }, 1000)
+
+  // Initial check on app start (after a short delay so the UI is up)
+  if (checkOnStart) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch((err) => {
+        writeState({ status: 'error', error: err && err.message ? err.message : String(err) })
       })
-    }).on('error', reject)
-  })
+    }, initialCheckDelayMs)
+  }
 }
 
-// Download file helper with progress callbacks
-function downloadFile(url, destPath, onProgress) {
-  return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(destPath)
-    
-    const request = (targetUrl) => {
-      https.get(targetUrl, { headers: { 'User-Agent': 'PESOS-Updater' } }, (res) => {
-        // Handle redirect
-        if (res.statusCode === 302 || res.statusCode === 301) {
-          request(res.headers.location)
-          return
-        }
+// ─── Synchronous helpers used by the Next.js route ─────────────────────────
 
-        if (res.statusCode !== 200) {
-          reject(new Error(`Download failed: status ${res.statusCode}`))
-          return
-        }
-
-        const totalBytes = parseInt(res.headers['content-length'] || '0', 10)
-        let downloadedBytes = 0
-
-        res.on('data', (chunk) => {
-          downloadedBytes += chunk.length
-          file.write(chunk)
-          if (totalBytes > 0 && onProgress) {
-            onProgress(Math.round((downloadedBytes / totalBytes) * 100))
-          }
-        })
-
-        res.on('end', () => {
-          file.end()
-          resolve()
-        })
-      }).on('error', (err) => {
-        file.end()
-        fs.unlink(destPath, () => reject(err))
-      })
-    }
-
-    request(url)
-  })
+function getState() {
+  return readState()
 }
 
-// Apply update based on platform
-function applyUpdate(filePath) {
-  const { app } = require('electron')
-  const platform = process.platform
+function requestCheck() {
+  ensureStateDir()
+  try {
+    fs.writeFileSync(CHECK_REQUEST_PATH, 'check', 'utf8')
+    return true
+  } catch (err) {
+    console.error('updater: failed to request check:', err)
+    return false
+  }
+}
 
-  if (platform === 'linux' && process.env.APPIMAGE) {
-    const targetPath = process.env.APPIMAGE
-    
-    // In Linux, we can replace the running AppImage binary directly (hot replacement)
-    try {
-      fs.copyFileSync(filePath, targetPath)
-      fs.chmodSync(targetPath, '755')
-      
-      // Clean up temp file
-      fs.unlinkSync(filePath)
-      
-      // Restart the AppImage
-      app.relaunch({ execPath: targetPath })
-      app.exit(0)
-    } catch (err) {
-      throw new Error(`Failed to apply AppImage update: ${err.message}`)
-    }
-  } else if (platform === 'win32') {
-    // Windows: launch installer executable and quit
-    try {
-      const child = spawn(filePath, ['/S'], {
-        detached: true,
-        stdio: 'ignore'
-      })
-      child.unref()
-      app.exit(0)
-    } catch (err) {
-      throw new Error(`Failed to launch Windows installer: ${err.message}`)
-    }
-  } else {
-    // General fallback: just open downloaded file
-    const { shell } = require('electron')
-    shell.openPath(filePath)
+function requestDownload() {
+  ensureStateDir()
+  try {
+    fs.writeFileSync(DOWNLOAD_REQUEST_PATH, 'download', 'utf8')
+    return true
+  } catch (err) {
+    console.error('updater: failed to request download:', err)
+    return false
+  }
+}
+
+function requestInstall() {
+  ensureStateDir()
+  try {
+    fs.writeFileSync(INSTALL_REQUEST_PATH, 'install', 'utf8')
+    return true
+  } catch (err) {
+    console.error('updater: failed to request install:', err)
+    return false
   }
 }
 
 module.exports = {
-  checkUpdate,
-  downloadFile,
-  applyUpdate
+  setupAutoUpdater,
+  getState,
+  requestCheck,
+  requestDownload,
+  requestInstall,
+  // Test-only exports (do not use from app code)
+  _internals: {
+    STATE_PATH,
+    CHECK_REQUEST_PATH,
+    DOWNLOAD_REQUEST_PATH,
+    INSTALL_REQUEST_PATH,
+    writeState,
+    readState,
+    getCurrentVersion
+  }
 }

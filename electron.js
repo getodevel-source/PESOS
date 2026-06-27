@@ -3,7 +3,7 @@ const path = require('path')
 const { spawn } = require('child_process')
 const fs = require('fs')
 const os = require('os')
-const { applyUpdate } = require('./updater')
+const { setupAutoUpdater } = require('./updater')
 
 let mainWindow = null
 let tray = null
@@ -188,27 +188,9 @@ function createTray() {
   })
 }
 
-// Watch for update completion files from next.js process
-function startUpdateMonitor() {
-  const pendingPath = path.join(os.homedir(), '.config', 'pesos', '.update-pending')
-  
-  setInterval(() => {
-    if (fs.existsSync(pendingPath)) {
-      try {
-        const filePath = fs.readFileSync(pendingPath, 'utf8').trim()
-        console.log(`Update trigger file detected. File to apply: ${filePath}`)
-        
-        // Remove trigger file to avoid loops
-        fs.unlinkSync(pendingPath)
-
-        // Apply update and exit
-        applyUpdate(filePath)
-      } catch (err) {
-        console.error('Failed to process update trigger:', err)
-      }
-    }
-  }, 3000)
-}
+// Update handling lives in updater.js (electron-updater) with a file-based
+// state bridge for the Next.js renderer. The old `startUpdateMonitor`
+// trigger-file polling was removed; see PR for the migration.
 
 // Δ2: trigger the local-only auth handshake after `next start` is up, so
 // the BrowserWindow's first navigation already has a session cookie. The
@@ -230,7 +212,7 @@ app.on('ready', () => {
   startNextServer()
   createWindow()
   createTray()
-  startUpdateMonitor()
+  setupAutoUpdater()
   // Wait for Next.js to boot (createWindow has a 3s delay) then call the
   // handshake. The BrowserWindow's first load happens inside createWindow.
   if (!isDev) {

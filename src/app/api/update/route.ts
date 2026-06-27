@@ -1,91 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
-import { checkUpdate, downloadFile } from '../../../../updater'
+import {
+  getState,
+  requestCheck,
+  requestDownload,
+  requestInstall
+} from '../../../../updater'
 
 export const dynamic = 'force-dynamic'
 
-const configDir = path.join(os.homedir(), '.config', 'pesos')
-const progressPath = path.join(configDir, 'update-progress.json')
-const pendingPath = path.join(configDir, '.update-pending')
-
-// Read package.json version
-function getCurrentVersion() {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf8'))
-    return pkg.version
-  } catch {
-    return '0.1.0'
-  }
-}
-
+// GET /api/update — returns the current updater state. The state is written
+// by the Electron main process to a file in ~/.config/pesos/update-state.json
+// on every electron-updater event. This route is read-only.
 export async function GET() {
   try {
-    const current = getCurrentVersion()
-    const updateInfo = await checkUpdate(current)
-
-    // Check if there's active download progress
-    let progress = -1
-    if (fs.existsSync(progressPath)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(progressPath, 'utf8'))
-        // If it was written recently (less than 2 minutes ago), use it
-        if (Date.now() - data.timestamp < 120000) {
-          progress = data.percent
-        }
-      } catch {}
-    }
-
-    return NextResponse.json({
-      currentVersion: current,
-      ...updateInfo,
-      progress
-    })
+    const state = getState()
+    return NextResponse.json(state)
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Error al verificar actualizaciones'
+    const msg = err instanceof Error ? err.message : 'Error al leer el estado del actualizador'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
 
+// POST /api/update { action: 'check' | 'download' | 'install' }
+// Triggers the corresponding electron-updater action via a file-based
+// request that the main process polls every second. The action does not
+// block — the UI should re-poll GET /api/update to observe progress.
 export async function POST(request: NextRequest) {
   try {
-    // SECURITY FIX: Re-verify update and get trusted assetUrl from GitHub
-    // Do NOT trust the client payload (prevents RCE via forged payload)
-    const current = getCurrentVersion()
-    const updateInfo = await checkUpdate(current)
+    const body = await request.json().catch(() => ({}))
+    const action = body && typeof body === 'object' ? body.action : null
 
-    if (!updateInfo.updateAvailable || !updateInfo.assetUrl || !updateInfo.filename) {
-      return NextResponse.json({ error: 'No hay actualizaciones válidas disponibles o URL no válida.' }, { status: 400 })
+    if (action === 'check') {
+      const ok = requestCheck()
+      return NextResponse.json({ ok, action, message: 'Verificación de actualizaciones solicitada.' })
+    }
+    if (action === 'download') {
+      const ok = requestDownload()
+      return NextResponse.json({ ok, action, message: 'Descarga de actualización solicitada.' })
+    }
+    if (action === 'install') {
+      const ok = requestInstall()
+      return NextResponse.json({ ok, action, message: 'Instalación de actualización solicitada. La app se va a reiniciar.' })
     }
 
-    const { assetUrl, filename } = updateInfo
-    const tempDest = path.join(os.tmpdir(), filename)
-
-    // Run download in background asynchronously
-    // We respond immediately to the client that the download has started
-    downloadFile(assetUrl, tempDest, (percent: number) => {
-      // Write progress to config dir so client can poll it
-      try {
-        fs.writeFileSync(progressPath, JSON.stringify({ percent, timestamp: Date.now() }), 'utf8')
-      } catch {}
-    }).then(() => {
-      // Completed! Write pending file to trigger Electron restart
-      try {
-        fs.writeFileSync(pendingPath, tempDest, 'utf8')
-        // Reset progress file
-        fs.writeFileSync(progressPath, JSON.stringify({ percent: 100, timestamp: Date.now() }), 'utf8')
-      } catch {}
-    }).catch((err) => {
-      console.error('Download background task failed:', err)
-      try {
-        fs.writeFileSync(progressPath, JSON.stringify({ percent: -1, error: err.message, timestamp: Date.now() }), 'utf8')
-      } catch {}
-    })
-
-    return NextResponse.json({ success: true, message: 'Descarga iniciada en segundo plano.' })
+    return NextResponse.json(
+      { error: `Acción desconocida: ${String(action)}. Usar 'check', 'download' o 'install'.` },
+      { status: 400 }
+    )
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Error al descargar actualización'
+    const msg = err instanceof Error ? err.message : 'Error al procesar la solicitud de actualización'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

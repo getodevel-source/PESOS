@@ -63,81 +63,73 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   // Close day modal state
   const [isCloseDayOpen, setIsCloseDayOpen] = useState(false)
 
-  // Update states
-  const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false)
-  const [latestVersion, setLatestVersion] = useState('')
-  const [assetUrl, setAssetUrl] = useState('')
-  const [filename, setFilename] = useState('')
-  const [updateProgress, setUpdateProgress] = useState(-1) // -1 means idle
+  // Update states (electron-updater flow)
+  // status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'>('idle')
+  const [updateCurrentVersion, setUpdateCurrentVersion] = useState('')
+  const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null)
+  const [updateProgress, setUpdateProgress] = useState(0)
   const [updateError, setUpdateError] = useState<string | null>(null)
+  const [updateBusy, setUpdateBusy] = useState(false)
 
   const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
 
-  const checkAppUpdate = async () => {
-    if (isCheckingUpdate) return
-    setIsCheckingUpdate(true)
-    setUpdateError(null)
-    try {
-      const res = await fetch('/api/update')
-      const data = await res.json()
-      if (data.updateAvailable) {
-        setUpdateAvailable(true)
-        setLatestVersion(data.latestVersion)
-        setAssetUrl(data.assetUrl)
-        setFilename(data.filename)
-        if (data.progress !== undefined && data.progress >= 0) {
-          setUpdateProgress(data.progress)
-        }
-      } else {
-        alert('Ya tienes la última versión instalada.')
-      }
-    } catch (err) {
-      console.error('Failed to check for updates:', err)
-      alert('Error al buscar actualizaciones.')
-    } finally {
-      setIsCheckingUpdate(false)
-    }
-  }
-
-  // Poll progress when update is downloading
+  // Poll the updater state. Always-on while the dashboard is mounted so the
+  // user sees progress from a download started earlier, or the auto-check
+  // that runs 5s after the app starts.
   useEffect(() => {
-    let interval: NodeJS.Timeout
-    if (updateProgress >= 0 && updateProgress < 100) {
-      interval = setInterval(async () => {
-        try {
-          const res = await fetch('/api/update')
-          const data = await res.json()
-          if (data.progress !== undefined) {
-            setUpdateProgress(data.progress)
-          }
-        } catch (err) {
-          console.error('Failed to poll update progress:', err)
+    let cancelled = false
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/update')
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        if (typeof data.status === 'string') setUpdateStatus(data.status)
+        if (typeof data.currentVersion === 'string') setUpdateCurrentVersion(data.currentVersion)
+        if (data.availableVersion === null || typeof data.availableVersion === 'string') {
+          setUpdateAvailableVersion(data.availableVersion ?? null)
         }
-      }, 1000)
+        if (typeof data.progress === 'number') setUpdateProgress(data.progress)
+        if (data.error === null || typeof data.error === 'string') {
+          setUpdateError(data.error ?? null)
+        }
+      } catch (err) {
+        console.error('Failed to poll updater state:', err)
+      }
     }
-    return () => clearInterval(interval)
-  }, [updateProgress])
+    poll()
+    const interval = setInterval(poll, 1500)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
 
-  const handleStartUpdate = async () => {
+  const sendUpdateAction = async (action: 'check' | 'download' | 'install') => {
+    setUpdateBusy(true)
     setUpdateError(null)
-    setUpdateProgress(0)
     try {
       const res = await fetch('/api/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assetUrl, filename })
+        body: JSON.stringify({ action })
       })
       if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Falló la descarga.')
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Falló la acción '${action}'.`)
       }
+      // Optimistic status bump; the poller will reconcile.
+      if (action === 'check') setUpdateStatus('checking')
+      if (action === 'download') setUpdateStatus('downloading')
     } catch (err: any) {
-      setUpdateError(err.message)
-      setUpdateProgress(-1)
+      setUpdateError(err?.message || 'Error al solicitar la actualización.')
+    } finally {
+      setUpdateBusy(false)
     }
   }
+
+  const checkAppUpdate = () => sendUpdateAction('check')
+  const handleStartDownload = () => sendUpdateAction('download')
+  const handleInstall = () => sendUpdateAction('install')
 
   // Notification states and refs
   const notifiedTasksRef = useRef<Set<string>>(new Set())
@@ -532,11 +524,11 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           </div>
           <button
             onClick={checkAppUpdate}
-            disabled={isCheckingUpdate}
+            disabled={updateBusy || updateStatus === 'checking'}
             className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-indigo-500/20 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 text-[10px] font-semibold rounded transition-all disabled:opacity-50"
           >
-            <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${isCheckingUpdate ? 'animate-spin' : ''}`} />
-            {isCheckingUpdate ? 'Buscando...' : 'Buscar actualizaciones'}
+            <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${updateStatus === 'checking' ? 'animate-spin' : ''}`} />
+            {updateStatus === 'checking' ? 'Buscando...' : 'Buscar actualizaciones'}
           </button>
           <button
             onClick={handleLogout}
@@ -545,27 +537,31 @@ export default function Dashboard({ initialUser }: DashboardProps) {
             <LogOut className="h-3.5 w-3.5 shrink-0" />
             Cerrar Sesión
           </button>
-          {/* Update Section */}
-          {updateAvailable && (
+          {/* Update Section (electron-updater state) */}
+          {(updateStatus === 'available' || updateStatus === 'downloading' || updateStatus === 'downloaded') && (
             <div className="p-2.5 rounded border border-indigo-500/20 bg-indigo-500/5 space-y-2 flex flex-col">
               <div className="flex items-center gap-1.5 text-indigo-400">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 <span className="text-[10px] font-bold uppercase tracking-wider">Nueva actualización</span>
               </div>
               <p className="text-[9px] text-slate-400 leading-snug">
-                Versión {latestVersion} disponible.
+                {updateCurrentVersion && <>Versión actual: {updateCurrentVersion}.<br /></>}
+                Versión {updateAvailableVersion} disponible.
               </p>
-              
-              {updateProgress === -1 ? (
+
+              {updateStatus === 'available' && (
                 <button
                   type="button"
-                  onClick={handleStartUpdate}
-                  className="w-full flex items-center justify-center gap-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-bold rounded transition-all shadow-md shadow-indigo-600/10"
+                  onClick={handleStartDownload}
+                  disabled={updateBusy}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-bold rounded transition-all shadow-md shadow-indigo-600/10 disabled:opacity-50"
                 >
                   <Download className="h-3 w-3 shrink-0" />
-                  Descargar e Instalar
+                  Descargar
                 </button>
-              ) : (
+              )}
+
+              {updateStatus === 'downloading' && (
                 <div className="space-y-1">
                   <div className="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
                     <div
@@ -577,12 +573,19 @@ export default function Dashboard({ initialUser }: DashboardProps) {
                     <span>Descargando...</span>
                     <span>{updateProgress}%</span>
                   </div>
-                  {updateProgress === 100 && (
-                    <span className="text-[8px] text-emerald-400 block font-semibold text-center animate-pulse mt-1">
-                      Aplicando actualización y reiniciando...
-                    </span>
-                  )}
                 </div>
+              )}
+
+              {updateStatus === 'downloaded' && (
+                <button
+                  type="button"
+                  onClick={handleInstall}
+                  disabled={updateBusy}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold rounded transition-all shadow-md shadow-emerald-600/10 disabled:opacity-50"
+                >
+                  <Download className="h-3 w-3 shrink-0" />
+                  Instalar y reiniciar
+                </button>
               )}
 
               {updateError && (
@@ -590,6 +593,26 @@ export default function Dashboard({ initialUser }: DashboardProps) {
                   {updateError}
                 </span>
               )}
+            </div>
+          )}
+
+          {updateStatus === 'error' && (
+            <div className="p-2.5 rounded border border-rose-500/20 bg-rose-500/5 space-y-1.5 flex flex-col">
+              <div className="flex items-center gap-1.5 text-rose-400">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Error de actualización</span>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-snug">
+                {updateError || 'No se pudo verificar la actualización.'}
+              </p>
+              <button
+                type="button"
+                onClick={checkAppUpdate}
+                disabled={updateBusy}
+                className="w-full flex items-center justify-center gap-1 py-1.5 bg-panel border border-border-primary hover:border-rose-500/20 hover:bg-rose-500/10 text-slate-300 hover:text-rose-400 text-[9px] font-bold rounded transition-all disabled:opacity-50"
+              >
+                Reintentar
+              </button>
             </div>
           )}
 
