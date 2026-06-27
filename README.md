@@ -44,6 +44,31 @@ Cuando abrís la app por primera vez, verás un **asistente en pantalla** para i
 
 *Todos los datos se guardan de forma local en tu máquina.*
 
+## 🧹 Desinstalación
+
+Si deseás remover PESOS de tu sistema, seguí estos pasos según tu plataforma:
+
+### 🐧 Linux
+
+Para eliminar por completo el binario, el acceso directo y los iconos creados por el instalador, podés ejecutar este comando:
+
+```bash
+rm -f ~/.local/bin/pesos
+rm -f ~/.local/share/applications/pesos.desktop
+rm -rf ~/.local/share/icons/hicolor/256x256/apps/pesos.png
+```
+
+### 🪟 Windows
+
+1. Dirigite a **Configuración** > **Aplicaciones** > **Aplicaciones instaladas**.
+2. Buscá **PESOS** en la lista y hacé clic en **Desinstalar**.
+
+### 🍎 macOS
+
+1. Mové la aplicación `PESOS.app` desde tu carpeta `/Applications` directamente al **Basurero**.
+
+> **Nota sobre tus Datos:** Por seguridad y para evitar pérdida accidental de información, la base de datos local SQLite (`pesos.db`) ubicada en tu directorio personal `~/.config/pesos/` **no se borra** automáticamente al desinstalar la app. Si deseás eliminar tus datos de forma permanente, borrá esa carpeta manualmente.
+
 ---
 
 ## 🛠️ Desarrollo Local / Servidores
