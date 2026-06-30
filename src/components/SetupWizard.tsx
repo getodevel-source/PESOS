@@ -11,6 +11,17 @@ interface FieldState {
 
 const defaultField = (): FieldState => ({ value: '', status: 'idle' })
 
+// StatusIcon is hoisted to module scope. Declaring it inside the
+// component would create a new component identity on every render,
+// which resets state and breaks memoization downstream. The
+// react-hooks/static-components rule flags exactly this pattern.
+function StatusIcon({ status }: { status: FieldState['status'] }) {
+  if (status === 'validating') return <Loader2 className="h-3.5 w-3.5 text-slate-400 animate-spin" />
+  if (status === 'ok') return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+  if (status === 'error') return <XCircle className="h-3.5 w-3.5 text-red-400" />
+  return null
+}
+
 export default function SetupWizard() {
   const [telegram, setTelegram] = useState<FieldState>(defaultField())
   const [gemini, setGemini] = useState<FieldState>(defaultField())
@@ -87,13 +98,6 @@ export default function SetupWizard() {
         ? 'border-red-500/60 text-red-300'
         : 'border-white/10 text-slate-100 focus:border-indigo-500'
     }`
-
-  const StatusIcon = ({ status }: { status: FieldState['status'] }) => {
-    if (status === 'validating') return <Loader2 className="h-3.5 w-3.5 text-slate-400 animate-spin" />
-    if (status === 'ok') return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-    if (status === 'error') return <XCircle className="h-3.5 w-3.5 text-red-400" />
-    return null
-  }
 
   if (done) {
     return (

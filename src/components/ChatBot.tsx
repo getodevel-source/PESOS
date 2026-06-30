@@ -71,17 +71,32 @@ export default function ChatBot() {
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
 
-  // Custom API keys state
-  const [googleApiKey, setGoogleApiKey] = useState('')
-  const [opencodeApiKey, setOpencodeApiKey] = useState('')
+  // Custom API keys state — lazy-init from localStorage so the seeding
+  // happens at mount instead of inside an effect. This is the React 19
+  // canonical pattern: useState(() => ...) runs the initializer once and
+  // avoids the set-state-in-effect cascade.
+  const [googleApiKey, setGoogleApiKey] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem('peso_google_api_key') || ''
+  })
+  const [opencodeApiKey, setOpencodeApiKey] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem('peso_opencode_api_key') || ''
+  })
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected' | 'unknown'>('unknown')
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Telegram bot config state
-  const [telegramToken, setTelegramToken] = useState('')
+  // Telegram bot config state — same lazy-init pattern.
+  const [telegramToken, setTelegramToken] = useState(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem('peso_telegram_bot_token') || ''
+  })
   const [telegramSetupStatus, setTelegramSetupStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [telegramSetupResult, setTelegramSetupResult] = useState<string | null>(null)
-  const [telegramBotUsername, setTelegramBotUsername] = useState<string | null>(null)
+  const [telegramBotUsername, setTelegramBotUsername] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    return localStorage.getItem('peso_telegram_bot_username') || null
+  })
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -135,21 +150,11 @@ export default function ChatBot() {
     }
   }
 
-  // Load saved API keys and validate initially / on provider change
+  // Validate initially and on every provider switch. The keys are already
+  // in state from the lazy initializers above, so we just call
+  // validateConnection() and let its default args pick them up.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedGoogle = localStorage.getItem('peso_google_api_key') || ''
-      const savedOpencode = localStorage.getItem('peso_opencode_api_key') || ''
-      const savedTelegram = localStorage.getItem('peso_telegram_bot_token') || ''
-      const savedBotUser = localStorage.getItem('peso_telegram_bot_username') || ''
-      
-      setGoogleApiKey(savedGoogle)
-      setOpencodeApiKey(savedOpencode)
-      setTelegramToken(savedTelegram)
-      setTelegramBotUsername(savedBotUser)
-      
-      validateConnection(provider, savedGoogle, savedOpencode)
-    }
+    validateConnection()
   }, [provider])
 
   // Handle Telegram dynamic webhook configuration

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { BookOpen, Save, Check, AlertTriangle, Loader2, Tag, Smile, History } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -38,38 +38,27 @@ const MOOD_OPTIONS = [
 
 const DEFAULT_TAGS = ['Personal', 'Trabajo', 'Salud', 'Metas', 'Aprendizaje', 'Relaciones']
 
-export default function JournalReflection({ entries, onRefresh }: JournalReflectionProps) {
-  const [content, setContent] = useState('')
-  const [selectedMood, setSelectedMood] = useState<string | null>(null)
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+// Internal editor — owns the editable state. The parent JournalReflection
+// remounts this component (via the `key` prop below) whenever today's
+// persisted entry changes, which resets the form to match the new source
+// of truth without an effect-based setState cascade.
+function JournalReflectionEditor({
+  entry,
+  todayStr,
+  onSaved,
+}: {
+  entry: JournalEntry | undefined
+  todayStr: string
+  onSaved: () => void
+}) {
+  const [content, setContent] = useState(entry?.content || '')
+  const [selectedMood, setSelectedMood] = useState<string | null>(entry?.metadata?.mood || null)
+  const [selectedTags, setSelectedTags] = useState<string[]>(entry?.metadata?.tags || [])
   const [loading, setLoading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
-  // Historical view state
-  const [viewingPastEntry, setViewingPastEntry] = useState<JournalEntry | null>(null)
 
   const supabase = createClient()
-  const todayStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
-
-  // Filter entries to only get journal reflections
-  const journalEntries = entries.filter((e) => e.entry_type === 'journal')
-  const todayEntry = journalEntries.find((e) => e.entry_date === todayStr)
-  const pastEntries = journalEntries.filter((e) => e.entry_date !== todayStr)
-
-  // Sync state with today's entry on load/change
-  useEffect(() => {
-    if (todayEntry) {
-      setContent(todayEntry.content || '')
-      setSelectedMood(todayEntry.metadata?.mood || null)
-      setSelectedTags(todayEntry.metadata?.tags || [])
-    } else {
-      setContent('')
-      setSelectedMood(null)
-      setSelectedTags([])
-    }
-    setSaveSuccess(false)
-  }, [todayEntry])
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags((prev) =>
@@ -93,7 +82,7 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
         tags: selectedTags,
       }
 
-      if (todayEntry) {
+      if (entry) {
         // Update existing entry
         const { error: updateError } = await supabase
           .from('journal_entries')
@@ -101,7 +90,7 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
             content: content.trim(),
             metadata,
           })
-          .eq('id', todayEntry.id)
+          .eq('id', entry.id)
 
         if (updateError) throw updateError
       } else {
@@ -118,7 +107,7 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
       }
 
       setSaveSuccess(true)
-      onRefresh()
+      onSaved()
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Error al guardar la reflexión'
@@ -129,104 +118,131 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
   }
 
   return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/[0.04]">
+        <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-indigo-400 stroke-[2.5px]" />
+          Bitácora de Reflexión
+        </h2>
+        <span className="text-[10px] opacity-40 font-mono">{todayStr}</span>
+      </div>
+
+      {error && (
+        <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-300 flex items-center gap-1">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Mood Selector */}
+      <div className="space-y-2">
+        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+          <Smile className="h-3 w-3" /> ¿Cómo te sentís hoy?
+        </label>
+        <div className="flex gap-2 justify-between">
+          {MOOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => setSelectedMood(opt.emoji)}
+              className={`flex-1 py-1.5 rounded-lg border text-base transition-all duration-200 ${
+                selectedMood === opt.emoji
+                  ? 'bg-indigo-500/20 border-indigo-500 text-white scale-105 shadow-md shadow-indigo-500/10'
+                  : 'bg-slate-900/40 border-white/[0.05] text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
+              }`}
+              title={opt.label}
+            >
+              {opt.emoji}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tags Selector */}
+      <div className="space-y-2">
+        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+          <Tag className="h-3 w-3" /> Categorías / Etiquetas
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {DEFAULT_TAGS.map((tag) => {
+            const isSelected = selectedTags.includes(tag)
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => handleTagToggle(tag)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
+                  isSelected
+                    ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30'
+                    : 'bg-slate-900/40 text-slate-400 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-300'
+                }`}
+              >
+                {tag}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Text Area */}
+      <div className="space-y-2">
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Escribí tus pensamientos, aprendizajes o metas del día acá..."
+          className="w-full h-32 p-3 bg-slate-950/40 border border-white/10 rounded-xl text-xs text-foreground focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 placeholder-slate-600 resize-none transition-all"
+        />
+      </div>
+
+      {/* Save button and success feedback */}
+      <div className="flex items-center justify-between pt-1">
+        <div>
+          {saveSuccess && (
+            <span className="text-[11px] text-emerald-400 flex items-center gap-1 animate-fade-in font-medium">
+              <Check className="h-3.5 w-3.5" />
+              Guardado
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={loading || !content.trim()}
+          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-indigo-400/20 shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 transition-all"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+          Guardar reflexión
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function JournalReflection({ entries, onRefresh }: JournalReflectionProps) {
+  const todayStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
+
+  // Historical view state lives at the parent level so the modal is not
+  // torn down when the editor remounts on entry change.
+  const [viewingPastEntry, setViewingPastEntry] = useState<JournalEntry | null>(null)
+
+  // Filter entries to only get journal reflections
+  const journalEntries = entries.filter((e) => e.entry_type === 'journal')
+  const todayEntry = journalEntries.find((e) => e.entry_date === todayStr)
+  const pastEntries = journalEntries.filter((e) => e.entry_date !== todayStr)
+
+  return (
     <div className="glass-panel glass-panel-hover rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
       <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/[0.04]">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-indigo-400 stroke-[2.5px]" />
-            Bitácora de Reflexión
-          </h2>
-          <span className="text-[10px] opacity-40 font-mono">{todayStr}</span>
-        </div>
-
-        {error && (
-          <div className="p-2 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-300 flex items-center gap-1">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Mood Selector */}
-        <div className="space-y-2">
-          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-            <Smile className="h-3 w-3" /> ¿Cómo te sentís hoy?
-          </label>
-          <div className="flex gap-2 justify-between">
-            {MOOD_OPTIONS.map((opt) => (
-              <button
-                key={opt.label}
-                type="button"
-                onClick={() => setSelectedMood(opt.emoji)}
-                className={`flex-1 py-1.5 rounded-lg border text-base transition-all duration-200 ${
-                  selectedMood === opt.emoji
-                    ? 'bg-indigo-500/20 border-indigo-500 text-white scale-105 shadow-md shadow-indigo-500/10'
-                    : 'bg-slate-900/40 border-white/[0.05] text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
-                }`}
-                title={opt.label}
-              >
-                {opt.emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tags Selector */}
-        <div className="space-y-2">
-          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-            <Tag className="h-3 w-3" /> Categorías / Etiquetas
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {DEFAULT_TAGS.map((tag) => {
-              const isSelected = selectedTags.includes(tag)
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleTagToggle(tag)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
-                    isSelected
-                      ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30'
-                      : 'bg-slate-900/40 text-slate-400 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-300'
-                  }`}
-                >
-                  {tag}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Text Area */}
-        <div className="space-y-2">
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Escribí tus pensamientos, aprendizajes o metas del día acá..."
-            className="w-full h-32 p-3 bg-slate-950/40 border border-white/10 rounded-xl text-xs text-foreground focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 placeholder-slate-600 resize-none transition-all"
-          />
-        </div>
-
-        {/* Save button and success feedback */}
-        <div className="flex items-center justify-between pt-1">
-          <div>
-            {saveSuccess && (
-              <span className="text-[11px] text-emerald-400 flex items-center gap-1 animate-fade-in font-medium">
-                <Check className="h-3.5 w-3.5" />
-                Guardado
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={loading || !content.trim()}
-            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-indigo-400/20 shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 transition-all"
-          >
-            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Guardar reflexión
-          </button>
-        </div>
+        {/* The `key` remounts the editor whenever today's entry identity
+            changes, so the form's state is reset from the latest entry
+            without an effect-based setState cascade. */}
+        <JournalReflectionEditor
+          key={todayEntry?.id ?? 'new'}
+          entry={todayEntry}
+          todayStr={todayStr}
+          onSaved={onRefresh}
+        />
 
         {/* Historial Section */}
         {pastEntries.length > 0 && (

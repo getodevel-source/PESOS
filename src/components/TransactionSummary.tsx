@@ -320,12 +320,19 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
     if (transactions.length < 2) return null
     // Get last 8 transactions in chronological order to plot progress
     const sorted = [...transactions].slice(0, 8).reverse()
-    let balanceAccumulator = 0
-    const pointsArray = sorted.map(t => {
-      if (t.type === 'income') balanceAccumulator += Number(t.amount)
-      else balanceAccumulator -= Number(t.amount)
-      return balanceAccumulator
-    })
+    // Compute the running balance in a single pass. Using reduce avoids
+    // mutating a render-scope `let` variable, which the
+    // react-hooks/immutability rule flags as a side effect inside what
+    // should be a pure expression.
+    const pointsArray = sorted.reduce<{ point: number; balances: number[] }>(
+      (acc, t) => {
+        const delta = t.type === 'income' ? Number(t.amount) : -Number(t.amount)
+        const next = acc.point + delta
+        acc.balances.push(next)
+        return { point: next, balances: acc.balances }
+      },
+      { point: 0, balances: [] }
+    ).balances
 
     const max = Math.max(...pointsArray)
     const min = Math.min(...pointsArray)
@@ -344,7 +351,8 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
     const pathD = `M ${coordinates[0].x} ${coordinates[0].y} ` + coordinates.slice(1).map(c => `L ${c.x} ${c.y}`).join(' ')
     const areaD = `${pathD} L ${coordinates[coordinates.length - 1].x} ${h} L ${coordinates[0].x} ${h} Z`
 
-    return { pathD, areaD, isPositive: balanceAccumulator >= 0 }
+    const lastBalance = pointsArray[pointsArray.length - 1] ?? 0
+    return { pathD, areaD, isPositive: lastBalance >= 0 }
   })()
 
   return (

@@ -9,9 +9,20 @@ import { useEffect, useState } from 'react'
 // the entry point) and to show a "loading" hint while the handshake is in
 // flight.
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const [ready, setReady] = useState(false)
+  // Read the cookie synchronously at init. When Electron already set the
+  // session, ready is true from the first render and we never run the
+  // handshake effect. This avoids the `set-state-in-effect` antipattern
+  // (calling setReady(true) inside the effect body just because a cookie
+  // was already on document).
+  const [ready, setReady] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false
+    return document.cookie.includes('session=')
+  })
 
   useEffect(() => {
+    // Cookie already present → no async handshake needed.
+    if (ready) return
+
     let cancelled = false
 
     async function ensureHandshake() {
@@ -26,17 +37,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Skip if the cookie is already set (Electron path).
-    if (typeof document !== 'undefined' && document.cookie.includes('session=')) {
-      setReady(true)
-      return
-    }
-
     ensureHandshake()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [ready])
 
   if (!ready) {
     return (

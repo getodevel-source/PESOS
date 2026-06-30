@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Utensils, Save, Check, AlertTriangle, Loader2, Droplet, Plus, RefreshCw, Scale } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { JournalEntry } from './JournalReflection'
@@ -28,47 +28,34 @@ const GOALS = {
   water: 2000,
 }
 
-export default function DietLog({ entries, onRefresh }: DietLogProps) {
-  const [content, setContent] = useState('')
-  const [calories, setCalories] = useState<number>(0)
-  const [protein, setProtein] = useState<number>(0)
-  const [carbs, setCarbs] = useState<number>(0)
-  const [fat, setFat] = useState<number>(0)
-  const [water, setWater] = useState<number>(0) // in ml
-  const [weight, setWeight] = useState<string>('') // weight in kg as string
+// Internal form — owns the editable state. The parent DietLog remounts
+// this component (via the `key` prop below) whenever today's persisted
+// entry changes, which resets the form to match the new source of truth
+// without an effect-based setState cascade.
+function DietLogForm({
+  entry,
+  todayStr,
+  onSaved,
+}: {
+  entry: JournalEntry | undefined
+  todayStr: string
+  onSaved: () => void
+}) {
+  const [content, setContent] = useState(entry?.content || '')
+  const [calories, setCalories] = useState<number>(entry?.metadata?.calories || 0)
+  const [protein, setProtein] = useState<number>(entry?.metadata?.macros?.protein || 0)
+  const [carbs, setCarbs] = useState<number>(entry?.metadata?.macros?.carbs || 0)
+  const [fat, setFat] = useState<number>(entry?.metadata?.macros?.fat || 0)
+  const [water, setWater] = useState<number>(entry?.metadata?.water || 0) // in ml
+  const [weight, setWeight] = useState<string>(
+    entry?.metadata?.weight ? String(entry.metadata.weight) : ''
+  ) // weight in kg as string
 
   const [loading, setLoading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const supabase = createClient()
-  const todayStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
-
-  // Filter entries to only get diet logs
-  const dietEntries = entries.filter((e) => e.entry_type === 'diet')
-  const todayEntry = dietEntries.find((e) => e.entry_date === todayStr)
-
-  // Sync state with today's entry on load/change
-  useEffect(() => {
-    if (todayEntry) {
-      setContent(todayEntry.content || '')
-      setCalories(todayEntry.metadata?.calories || 0)
-      setProtein(todayEntry.metadata?.macros?.protein || 0)
-      setCarbs(todayEntry.metadata?.macros?.carbs || 0)
-      setFat(todayEntry.metadata?.macros?.fat || 0)
-      setWater(todayEntry.metadata?.water || 0)
-      setWeight(todayEntry.metadata?.weight ? String(todayEntry.metadata.weight) : '')
-    } else {
-      setContent('')
-      setCalories(0)
-      setProtein(0)
-      setCarbs(0)
-      setFat(0)
-      setWater(0)
-      setWeight('')
-    }
-    setSaveSuccess(false)
-  }, [todayEntry])
 
   const addWater = (amount: number) => {
     setWater((w) => Math.max(0, w + amount))
@@ -111,7 +98,7 @@ export default function DietLog({ entries, onRefresh }: DietLogProps) {
         weight: weight.trim() ? parseFloat(weight) : null,
       }
 
-      if (todayEntry) {
+      if (entry) {
         // Update existing entry
         const { error: updateError } = await supabase
           .from('journal_entries')
@@ -119,7 +106,7 @@ export default function DietLog({ entries, onRefresh }: DietLogProps) {
             content: content.trim(),
             metadata,
           })
-          .eq('id', todayEntry.id)
+          .eq('id', entry.id)
 
         if (updateError) throw updateError
       } else {
@@ -136,7 +123,7 @@ export default function DietLog({ entries, onRefresh }: DietLogProps) {
       }
 
       setSaveSuccess(true)
-      onRefresh()
+      onSaved()
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Error al guardar la dieta'
@@ -388,4 +375,17 @@ export default function DietLog({ entries, onRefresh }: DietLogProps) {
       </div>
     </div>
   )
+}
+
+export default function DietLog({ entries, onRefresh }: DietLogProps) {
+  const todayStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
+
+  // Filter entries to only get diet logs
+  const dietEntries = entries.filter((e) => e.entry_type === 'diet')
+  const todayEntry = dietEntries.find((e) => e.entry_date === todayStr)
+
+  // The `key` remounts DietLogForm whenever today's entry identity
+  // changes, so the form's state is reset from the latest entry without
+  // an effect-based setState cascade.
+  return <DietLogForm key={todayEntry?.id ?? 'new'} entry={todayEntry} todayStr={todayStr} onSaved={onRefresh} />
 }
