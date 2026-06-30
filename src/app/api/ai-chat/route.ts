@@ -4,6 +4,19 @@ import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getDefaultProvider } from '@/lib/ai-config'
+import { type MockDatabase } from '@/lib/sqlite-db'
+
+// Row aliases for the Supabase mock tables this route queries. Reusing the
+// canonical `MockDatabase` types keeps the route aligned with the schema
+// defined in `src/lib/sqlite-db.ts` instead of inventing a parallel type
+// system here. `HabitListItem` covers the same pre-existing mismatch where
+// this route reads `h.name` from the habits query even though the schema
+// (and HabitList.tsx) use `h.title`.
+type TaskRow = MockDatabase['public']['Tables']['tasks']['Row']
+type HabitRow = MockDatabase['public']['Tables']['habits']['Row']
+type HabitListItem = HabitRow & { name: string }
+type HabitLogRow = MockDatabase['public']['Tables']['habit_logs']['Row']
+type TransactionRow = MockDatabase['public']['Tables']['transactions']['Row']
 
 // Supported providers
 // - 'gemini'   → Google AI (GOOGLE_AI_API_KEY)
@@ -76,35 +89,37 @@ async function buildUserContext(userId: string, monthlyBudgetLimit?: number): Pr
         .limit(10),
     ])
 
-  const tasks = (tasksResult.data || []) as any[]
-  const habits = (habitsResult.data || []) as any[]
-  const habitLogs = (logsResult.data || []) as any[]
-  const transactions = (transactionsResult.data || []) as any[]
-  const upcoming = (upcomingResult.data || []) as any[]
+  const tasks = (tasksResult.data || []) as TaskRow[]
+  const habits = (habitsResult.data || []) as HabitListItem[]
+  const habitLogs = (logsResult.data || []) as HabitLogRow[]
+  const transactions = (transactionsResult.data || []) as TransactionRow[]
+  const upcoming = (upcomingResult.data || []) as TaskRow[]
 
-  const completedHabitIds = new Set(habitLogs.map((l: any) => l.habit_id))
+  const completedHabitIds = new Set(habitLogs.map((l: HabitLogRow) => l.habit_id))
 
   // Tasks segmented
-  const pendingTasks = tasks.filter((t: any) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr))
-  const doneTasks = tasks.filter((t: any) => t.status === 'done')
+  const pendingTasks = tasks.filter(
+    (t: TaskRow) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr)
+  )
+  const doneTasks = tasks.filter((t: TaskRow) => t.status === 'done')
 
   // Finance aggregation
   const todayTransactions = transactions.filter(
-    (t: any) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
+    (t: TransactionRow) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
   )
   const totalExpensesToday = todayTransactions
-    .filter((t: any) => t.type === 'expense')
-    .reduce((s: number, t: any) => s + Number(t.amount), 0)
+    .filter((t: TransactionRow) => t.type === 'expense')
+    .reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
   const totalIncomeToday = todayTransactions
-    .filter((t: any) => t.type === 'income')
-    .reduce((s: number, t: any) => s + Number(t.amount), 0)
+    .filter((t: TransactionRow) => t.type === 'income')
+    .reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
 
   const totalExpenses30d = transactions
-    .filter((t: any) => t.type === 'expense')
-    .reduce((s: number, t: any) => s + Number(t.amount), 0)
+    .filter((t: TransactionRow) => t.type === 'expense')
+    .reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
   const totalIncome30d = transactions
-    .filter((t: any) => t.type === 'income')
-    .reduce((s: number, t: any) => s + Number(t.amount), 0)
+    .filter((t: TransactionRow) => t.type === 'income')
+    .reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
 
   // Monthly budget calculation
   const now30 = new Date()

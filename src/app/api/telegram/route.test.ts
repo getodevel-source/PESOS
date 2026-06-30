@@ -1,6 +1,7 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { POST } from './route'
 import { NextRequest } from 'next/server'
+import type { MockQueryChain } from '@/lib/sqlite-db'
 
 vi.mock('@/lib/supabase', () => {
   const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
@@ -20,14 +21,32 @@ vi.mock('@/lib/supabase', () => {
     eq: mockUpdateEq,
   }))
 
-  const defaultQueryMock: any = {
+  // Default catch-all chain for tables that are neither `profiles` nor
+  // `inputs`. Typed as `MockQueryChain<...>` so the read surface used by
+  // `route.ts` (select/eq/order/limit/gte/gt + await) type-checks. The
+  // remaining methods are stubbed with self-referential `vi.fn(() => ...)`
+  // so the type is fully satisfied without expanding the runtime surface
+  // (none of the production routes call insert/update/delete/single/
+  // maybeSingle/throwOnError on this fallback chain). The `as never` casts
+  // on the narrowing methods (insert/update/delete/single/maybeSingle/then)
+  // reconcile `defaultQueryMock`'s default `Result = Row[] | null` with the
+  // narrower `Result` each of those methods actually returns.
+  const defaultQueryMock: MockQueryChain<Record<string, unknown>> = {
     select: vi.fn(() => defaultQueryMock),
+    insert: vi.fn(() => defaultQueryMock as never),
+    update: vi.fn(() => defaultQueryMock as never),
+    delete: vi.fn(() => defaultQueryMock as never),
     eq: vi.fn(() => defaultQueryMock),
     order: vi.fn(() => defaultQueryMock),
     limit: vi.fn(() => defaultQueryMock),
     gte: vi.fn(() => defaultQueryMock),
     gt: vi.fn(() => defaultQueryMock),
-    then: vi.fn((resolve) => resolve({ data: [], error: null })),
+    single: vi.fn(() => defaultQueryMock as never),
+    maybeSingle: vi.fn(() => defaultQueryMock as never),
+    throwOnError: vi.fn(() => defaultQueryMock),
+    then: vi.fn((onfulfilled) =>
+      Promise.resolve(onfulfilled?.({ data: [], error: null } as never))
+    ) as never,
   }
 
   const mockSupabase = {

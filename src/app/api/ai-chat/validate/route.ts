@@ -33,11 +33,11 @@ export async function POST(request: NextRequest) {
         // Input: 4 chars, Output: tiny. Cost is effectively $0.00.
         await model.generateContent('ping')
         return NextResponse.json({ valid: true })
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Gemini verification error:', err)
         return NextResponse.json({
           valid: false,
-          error: err.message || 'Error de autorización con la API key de Google.',
+          error: (err instanceof Error ? err.message : '') || 'Error de autorización con la API key de Google.',
         })
       }
     }
@@ -58,17 +58,17 @@ export async function POST(request: NextRequest) {
         // List models to check connection. This uses metadata and does not burn generation tokens.
         await openai.models.list()
         return NextResponse.json({ valid: true })
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('OpenCode Go verification error:', err)
         return NextResponse.json({
           valid: false,
-          error: err.message || 'Error de autorización con la API key de OpenCode Go.',
+          error: (err instanceof Error ? err.message : '') || 'Error de autorización con la API key de OpenCode Go.',
         })
       }
     }
 
     return NextResponse.json({ error: 'Proveedor no soportado.' }, { status: 400 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('API Validation endpoint error:', error)
     return NextResponse.json({ error: 'Error interno del servidor de validación.' }, { status: 500 })
   }

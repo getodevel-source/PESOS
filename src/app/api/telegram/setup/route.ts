@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       username: botUsername,
       name: botFirstName,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Telegram Webhook Setup Error:', error)
     return NextResponse.json({ error: 'Error interno del servidor al configurar el webhook.' }, { status: 500 })
   }
