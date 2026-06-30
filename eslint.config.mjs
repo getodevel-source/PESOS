@@ -12,7 +12,22 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Exclude the Electron build output. Linting the bundled app under
+    // dist/ produces duplicate errors against already-compiled code and
+    // slows the lint pass considerably. Mirrors the scope used by vitest.
+    "dist/**",
   ]),
+  // The Electron entrypoints (electron.js, updater.js, updater-bridge.js,
+  // scripts/bot-daemon.js) are CommonJS Node scripts, not TypeScript
+  // modules. Disable TS-only rules for plain .js files so the CommonJS
+  // `require()` calls they need don't trip @typescript-eslint.
+  {
+    files: ["**/*.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "@typescript-eslint/no-var-requires": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
