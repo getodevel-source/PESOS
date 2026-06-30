@@ -227,7 +227,7 @@ export default function SetupWizard() {
               className={inputClass('idle')}
             />
             <p className="text-[10px] text-slate-500 leading-relaxed">
-              Permite usar el bot "Pesito" para registrar gastos y tareas por Telegram.
+              Permite usar el bot &ldquo;Pesito&rdquo; para registrar gastos y tareas por Telegram.
             </p>
           </div>
 

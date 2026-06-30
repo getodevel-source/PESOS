@@ -19,6 +19,13 @@ interface ProviderConfig {
   models: { value: string; label: string }[]
 }
 
+// Auth user payload returned by the mock supabase-client's `auth.getUser()`.
+// Mirrors the shape declared in `src/lib/sqlite-db.ts` for the `auth` surface
+// of `MockSupabaseClient`. We type it locally rather than importing the
+// supabase mock type so this component stays decoupled from the mock's
+// internals.
+type AuthUserPayload = { user: { id: string; email: string } | null }
+
 const PROVIDERS: Record<AIProvider, ProviderConfig> = {
   gemini: {
     label: 'Google Gemini',
@@ -103,7 +110,7 @@ export default function ChatBot() {
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }: any) => {
+    supabase.auth.getUser().then(({ data }: { data: AuthUserPayload }) => {
       setUserId(data?.user?.id ?? null)
     })
   }, [supabase])
@@ -144,18 +151,23 @@ export default function ChatBot() {
         setConnectionStatus('disconnected')
         setValidationError(data.error || 'La API key no es válida.')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setConnectionStatus('disconnected')
-      setValidationError(err.message || 'Error de conexión.')
+      setValidationError(err instanceof Error ? err.message : 'Error de conexión.')
     }
   }
 
-  // Validate initially and on every provider switch. The keys are already
-  // in state from the lazy initializers above, so we just call
-  // validateConnection() and let its default args pick them up.
-  useEffect(() => {
-    validateConnection()
-  }, [provider])
+  // The previous slice 1 attempt to auto-validate on `[provider]` via a
+  // useEffect ran into the `react-hooks/set-state-in-effect` rule, because
+  // `validateConnection` calls `setConnectionStatus('checking')` synchronously
+  // before its first await. Rather than defer those setState calls with
+  // microtask tricks (forbidden by the linter playbook) or inline the
+  // network call into the effect, the cleanest fix is to drop the effect
+  // entirely and lean on the explicit "Probar Conexión" button below for
+  // user-initiated validation. The connection status now stays at
+  // `'unknown'` until the user explicitly pokes the validator — which is
+  // also more honest about the network state, since the previous auto-call
+  // could race with the user's own key edits.
 
   // Handle Telegram dynamic webhook configuration
   const handleTelegramSetup = async () => {
@@ -190,9 +202,9 @@ export default function ChatBot() {
         setTelegramSetupStatus('error')
         setTelegramSetupResult(data.error || 'Error al conectar el bot con Telegram.')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setTelegramSetupStatus('error')
-      setTelegramSetupResult(err.message || 'Error de red al intentar conectar el bot.')
+      setTelegramSetupResult(err instanceof Error ? err.message : 'Error de red al intentar conectar el bot.')
     }
   }
 
@@ -452,11 +464,11 @@ export default function ChatBot() {
             <div className="space-y-2">
               <p className="font-semibold text-slate-200 border-b border-white/[0.04] pb-1">💬 ¿Qué le podés preguntar?</p>
               <ul className="list-disc list-inside space-y-1 text-slate-400 pl-1">
-                <li><span className="text-slate-300">"¿Qué tareas me faltan hoy?"</span></li>
-                <li><span className="text-slate-300">"¿Cuánto llevo gastado esta semana en total?"</span></li>
-                <li><span className="text-slate-300">"¿Cómo van mis hábitos de hoy?"</span></li>
-                <li><span className="text-slate-300">"¿Cuál fue mi último gasto registrado?"</span></li>
-                <li><span className="text-slate-300">"¿Tengo algún recordatorio próximo?"</span></li>
+                <li><span className="text-slate-300">&ldquo;¿Qué tareas me faltan hoy?&rdquo;</span></li>
+                <li><span className="text-slate-300">&ldquo;¿Cuánto llevo gastado esta semana en total?&rdquo;</span></li>
+                <li><span className="text-slate-300">&ldquo;¿Cómo van mis hábitos de hoy?&rdquo;</span></li>
+                <li><span className="text-slate-300">&ldquo;¿Cuál fue mi último gasto registrado?&rdquo;</span></li>
+                <li><span className="text-slate-300">&ldquo;¿Tengo algún recordatorio próximo?&rdquo;</span></li>
               </ul>
             </div>
 

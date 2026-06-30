@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { LogOut, CheckCircle2, User, Cloud, Sun, CloudLightning, Calendar, CheckSquare, Smile, RefreshCw, X, LayoutDashboard, Award, BookOpen, DollarSign, Bot, Utensils, Download, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
+import { type MockDatabase } from '@/lib/sqlite-db'
 import AuthGate from './AuthGate'
 import TaskList, { Task } from './TaskList'
 import HabitList, { Habit, HabitLog } from './HabitList'
@@ -12,6 +13,14 @@ import TransactionSummary, { Transaction, BudgetStatus } from './TransactionSumm
 import TaskCalendar from './TaskCalendar'
 import ChatBot from './ChatBot'
 import ErrorBoundary from './ErrorBoundary'
+
+// Row shapes pulled from the SQLite-backed Supabase mock schema in
+// `src/lib/sqlite-db.ts`. Using the mock's `MockDatabase` type keeps the
+// dashboard's `.map((row) => ...)` callbacks in lockstep with the columns
+// the mock actually returns, so adding a column to the schema surfaces here
+// as a real type error instead of an `any` escape hatch.
+type AchievementRow = MockDatabase['public']['Tables']['achievements']['Row']
+type UserAchievementRow = MockDatabase['public']['Tables']['user_achievements']['Row']
 
 // Weather system
 type WeatherState = 'sunny' | 'cloudy' | 'stormy'
@@ -120,8 +129,8 @@ export default function Dashboard({ initialUser }: DashboardProps) {
       // Optimistic status bump; the poller will reconcile.
       if (action === 'check') setUpdateStatus('checking')
       if (action === 'download') setUpdateStatus('downloading')
-    } catch (err: any) {
-      setUpdateError(err?.message || 'Error al solicitar la actualización.')
+    } catch (err: unknown) {
+      setUpdateError(err instanceof Error ? err.message : 'Error al solicitar la actualización.')
     } finally {
       setUpdateBusy(false)
     }
@@ -301,8 +310,8 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           .select('achievement_id')
           .eq('user_id', initialUser.id)
 
-        const unlockedIds = new Set((unlockedAchievements || []).map((ua: any) => ua.achievement_id))
-        const achievementsWithUnlock = (allAchievements || []).map((ach: any) => ({
+        const unlockedIds = new Set((unlockedAchievements || []).map((ua: UserAchievementRow) => ua.achievement_id))
+        const achievementsWithUnlock = (allAchievements || []).map((ach: AchievementRow) => ({
           ...ach,
           unlocked: unlockedIds.has(ach.id)
         }))
