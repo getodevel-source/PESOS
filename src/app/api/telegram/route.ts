@@ -4,6 +4,7 @@ import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { getDefaultProvider, type AIProvider } from '@/lib/ai-config'
+import { type MockDatabase } from '@/lib/sqlite-db'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,19 @@ interface TelegramPayload {
     message?: { chat?: { id: number } }
   }
 }
+
+// Row aliases for the Supabase mock tables this route queries. Reusing the
+// canonical `MockDatabase` types keeps the route aligned with the schema
+// defined in `src/lib/sqlite-db.ts` instead of inventing a parallel type
+// system here. The single local extension (`HabitListItem`) covers a
+// pre-existing mismatch where this route reads `h.name` even though the
+// schema and the rest of the codebase (HabitList.tsx) use `title`.
+type TaskRow = MockDatabase['public']['Tables']['tasks']['Row']
+type HabitRow = MockDatabase['public']['Tables']['habits']['Row']
+type HabitListItem = HabitRow & { name: string }
+type HabitLogRow = MockDatabase['public']['Tables']['habit_logs']['Row']
+type TransactionRow = MockDatabase['public']['Tables']['transactions']['Row']
+type UpcomingTaskRow = Pick<TaskRow, 'title' | 'due_date' | 'description'>
 
 // ─── Telegram API Helper ──────────────────────────────────────────────────────
 
@@ -75,25 +89,25 @@ async function buildUserContext(userId: string): Promise<string> {
         .limit(10),
     ])
 
-  const tasks = (tasksResult.data || []) as any[]
-  const habits = (habitsResult.data || []) as any[]
-  const habitLogs = (logsResult.data || []) as any[]
-  const transactions = (transactionsResult.data || []) as any[]
-  const upcoming = (upcomingResult.data || []) as any[]
+  const tasks = (tasksResult.data || []) as TaskRow[]
+  const habits = (habitsResult.data || []) as HabitListItem[]
+  const habitLogs = (logsResult.data || []) as HabitLogRow[]
+  const transactions = (transactionsResult.data || []) as TransactionRow[]
+  const upcoming = (upcomingResult.data || []) as UpcomingTaskRow[]
 
-  const completedHabitIds = new Set(habitLogs.map((l: any) => l.habit_id))
+  const completedHabitIds = new Set(habitLogs.map((l: HabitLogRow) => l.habit_id))
   const pendingTasks = tasks.filter(
-    (t: any) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr)
+    (t: TaskRow) => t.status === 'todo' && (!t.due_date || new Date(t.due_date).toLocaleDateString('sv-SE') <= todayStr)
   )
-  const doneTasks = tasks.filter((t: any) => t.status === 'done')
+  const doneTasks = tasks.filter((t: TaskRow) => t.status === 'done')
 
   const todayTx = transactions.filter(
-    (t: any) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
+    (t: TransactionRow) => new Date(t.created_at).toLocaleDateString('sv-SE') === todayStr
   )
-  const expensesToday = todayTx.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
-  const incomeToday = todayTx.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
-  const expenses30d = transactions.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
-  const income30d = transactions.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
+  const expensesToday = todayTx.filter((t: TransactionRow) => t.type === 'expense').reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
+  const incomeToday = todayTx.filter((t: TransactionRow) => t.type === 'income').reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
+  const expenses30d = transactions.filter((t: TransactionRow) => t.type === 'expense').reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
+  const income30d = transactions.filter((t: TransactionRow) => t.type === 'income').reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
 
   const dateLabel = new Date().toLocaleDateString('es-ES', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -102,20 +116,20 @@ async function buildUserContext(userId: string): Promise<string> {
   return `=== CONTEXTO — HOY: ${dateLabel} ===
 
 🗂 TAREAS PENDIENTES (${pendingTasks.length}):
-${pendingTasks.length === 0 ? '  • Sin tareas pendientes' : pendingTasks.map((t: any) => `  • ${t.title}${t.due_date ? ` [${new Date(t.due_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}]` : ''}`).join('\n')}
+${pendingTasks.length === 0 ? '  • Sin tareas pendientes' : pendingTasks.map((t: TaskRow) => `  • ${t.title}${t.due_date ? ` [${new Date(t.due_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}]` : ''}`).join('\n')}
 
 ✅ COMPLETADAS HOY (${doneTasks.length}):
-${doneTasks.length === 0 ? '  • Ninguna' : doneTasks.map((t: any) => `  • ✓ ${t.title}`).join('\n')}
+${doneTasks.length === 0 ? '  • Ninguna' : doneTasks.map((t: TaskRow) => `  • ✓ ${t.title}`).join('\n')}
 
 🔔 PRÓXIMOS RECORDATORIOS (${upcoming.length}):
-${upcoming.length === 0 ? '  • Sin recordatorios futuros' : upcoming.map((t: any) => `  • ${t.title} — ${new Date(t.due_date!).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} ${new Date(t.due_date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`).join('\n')}
+${upcoming.length === 0 ? '  • Sin recordatorios futuros' : upcoming.map((t: UpcomingTaskRow) => `  • ${t.title} — ${new Date(t.due_date!).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} ${new Date(t.due_date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`).join('\n')}
 
 🔄 HÁBITOS (${completedHabitIds.size}/${habits.length} completados):
-${habits.length === 0 ? '  • Sin hábitos' : habits.map((h: any) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.name}`).join('\n')}
+${habits.length === 0 ? '  • Sin hábitos' : habits.map((h: HabitListItem) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.name}`).join('\n')}
 
 💰 FINANZAS HOY: Gastos $${expensesToday.toFixed(2)} | Ingresos $${incomeToday.toFixed(2)} | Balance $${(incomeToday - expensesToday).toFixed(2)}
 📊 30 DÍAS: Gastado $${expenses30d.toFixed(2)} | Ingresado $${income30d.toFixed(2)} | Balance $${(income30d - expenses30d).toFixed(2)}
-🧾 ÚLTIMAS 5 TX: ${transactions.slice(0, 5).map((t: any) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} $${Number(t.amount).toFixed(2)}`).join(' | ')}
+🧾 ÚLTIMAS 5 TX: ${transactions.slice(0, 5).map((t: TransactionRow) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} $${Number(t.amount).toFixed(2)}`).join(' | ')}
 
 === FIN ===`
 }
@@ -265,7 +279,7 @@ async function handleCommand(
         .order('created_at', { ascending: false })
         .limit(15)
 
-      const tasks = (tasksResult || []) as any[]
+      const tasks = (tasksResult || []) as TaskRow[]
 
       if (tasks.length === 0) {
         await sendTelegramMessage(chatId, '✅ ¡No tenés tareas pendientes! Bien hecho.')
@@ -273,7 +287,7 @@ async function handleCommand(
       }
 
       const list = tasks
-        .map((t: any) =>
+        .map((t: TaskRow) =>
           `• ${t.title}${t.due_date ? ` _(${new Date(t.due_date).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})_` : ''}`
         )
         .join('\n')
@@ -292,17 +306,17 @@ async function handleCommand(
         supabase.from('habit_logs').select('habit_id').eq('log_date', todayStr),
       ])
 
-      const habits = (habitsResult || []) as any[]
-      const logs = (logsResult || []) as any[]
+      const habits = (habitsResult || []) as HabitListItem[]
+      const logs = (logsResult || []) as HabitLogRow[]
 
       if (habits.length === 0) {
         await sendTelegramMessage(chatId, 'No tenés hábitos registrados todavía.')
         return
       }
 
-      const completedIds = new Set(logs.map((l: any) => l.habit_id))
+      const completedIds = new Set(logs.map((l: HabitLogRow) => l.habit_id))
       const list = habits
-        .map((h: any) => `${completedIds.has(h.id) ? '✅' : '⬜'} ${h.name}`)
+        .map((h: HabitListItem) => `${completedIds.has(h.id) ? '✅' : '⬜'} ${h.name}`)
         .join('\n')
       const pct = Math.round((completedIds.size / habits.length) * 100)
 
@@ -326,15 +340,15 @@ async function handleCommand(
         .order('created_at', { ascending: false })
         .limit(20)
 
-      const transactions = (txs || []) as any[]
-      const expenses = transactions.filter((t: any) => t.type === 'expense')
-      const income = transactions.filter((t: any) => t.type === 'income')
-      const totalExp = expenses.reduce((s: number, t: any) => s + Number(t.amount), 0)
-      const totalInc = income.reduce((s: number, t: any) => s + Number(t.amount), 0)
+      const transactions = (txs || []) as TransactionRow[]
+      const expenses = transactions.filter((t: TransactionRow) => t.type === 'expense')
+      const income = transactions.filter((t: TransactionRow) => t.type === 'income')
+      const totalExp = expenses.reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
+      const totalInc = income.reduce((s: number, t: TransactionRow) => s + Number(t.amount), 0)
 
       const txList = transactions
         .slice(0, 8)
-        .map((t: any) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} *$${toARSDisplay(Number(t.amount))}*`)
+        .map((t: TransactionRow) => `${t.type === 'expense' ? '↓' : '↑'} ${t.description} *$${toARSDisplay(Number(t.amount))}*`)
         .join('\n')
 
       await sendTelegramMessage(
@@ -680,8 +694,8 @@ export async function POST(request: NextRequest) {
                     mimeType: voice.mime_type || 'audio/ogg',
                   }
                 }
-              } catch (err: any) {
-                await sendTelegramMessage(chat_id, `❌ Hubo un problema al descargar o procesar tu nota de voz: ${err.message}`)
+              } catch (err: unknown) {
+                await sendTelegramMessage(chat_id, `❌ Hubo un problema al descargar o procesar tu nota de voz: ${err instanceof Error ? err.message : String(err)}`)
                 return NextResponse.json({ ok: true }, { status: 200 })
               }
             }
