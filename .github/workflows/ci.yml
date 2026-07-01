@@ -1,0 +1,43 @@
+name: CI
+
+# Runs on every push to any branch and on every PR. Catches drift
+# early — the release workflow only catches it when cutting a tag,
+# which is too late (the bug has already been merged).
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+    branches: [main, 'release/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Verify mock ↔ schema sync
+        # Same check as the release workflow — runs on every push so
+        # drift between sqlite-db.ts and the MockDatabase type is
+        # caught at PR time, not at release time.
+        run: bash scripts/check-mock-schema-sync.sh
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test

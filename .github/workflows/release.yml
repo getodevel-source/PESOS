@@ -23,6 +23,13 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Verify mock ↔ schema sync
+        # Catches drift between src/lib/sqlite-db.ts (the SQLite
+        # schema) and the MockDatabase type in supabase.ts. Runs in
+        # < 1s. Fails the release if a new table was added to one
+        # but not the other.
+        run: bash scripts/check-mock-schema-sync.sh
+
       - name: Build Next.js & Electron (AppImage / DEB)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
