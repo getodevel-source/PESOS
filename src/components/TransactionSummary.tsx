@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Plus, Trash2, DollarSign, ArrowUpRight, ArrowDownRight, AlertTriangle, TrendingUp, Target, ChevronDown, ChevronUp, Sliders, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -96,7 +96,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
   const [isBudgetOpen, setIsBudgetOpen] = useState(true)
   const [sliderValue, setSliderValue] = useState<number>(0)
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
 
   // Load budget limit from profiles table on mount (or fallback to localStorage)
@@ -148,7 +148,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
       }
     }
     loadBudget()
-  }, [])
+  }, [supabase])
 
   // Fetch MEP rate when USD selected
   const fetchMepRate = useCallback(async () => {

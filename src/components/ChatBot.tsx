@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo, useReducer } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, useReducer } from 'react'
 import { Bot, Send, User, Loader2, Sparkles, X, Settings, ChevronDown, HelpCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -143,8 +143,12 @@ export default function ChatBot() {
 
   // Validate the connection. Returns a result instead of calling setState,
   // so the effect and the button can both dispatch through the reducer
-  // without re-entering `react-hooks/set-state-in-effect`.
-  const validateConnection = async (
+  // without re-entering `react-hooks/set-state-in-effect`. Wrapped in
+  // useCallback so the auto-validate effect can list it as a dep without
+  // re-firing every render; the deps are exactly the values the call
+  // closes over, and the effect's own `lastValidatedProviderRef` guard
+  // keeps run conditions unchanged (re-validates only on provider switch).
+  const validateConnection = useCallback(async (
     targetProvider = provider,
     customGoogle = googleApiKey,
     customOpencode = opencodeApiKey
@@ -167,7 +171,7 @@ export default function ChatBot() {
 
     const data = await res.json()
     return { valid: Boolean(data.valid), error: data.error as string | undefined }
-  }
+  }, [provider, googleApiKey, opencodeApiKey])
 
   // Auto-validate on provider switch. The useRef guard avoids the
   // synchronous `dispatch({ type: 'validating' })` that would trip
@@ -191,7 +195,7 @@ export default function ChatBot() {
     return () => {
       cancelled = true
     }
-  }, [provider])
+  }, [provider, validateConnection])
 
   // User-initiated re-validation from the "Probar Conexión" button. The
   // synchronous `dispatch({ type: 'validating' })` is fine here — the
