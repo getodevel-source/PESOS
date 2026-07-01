@@ -70,9 +70,16 @@ function setupAutoUpdater({ checkOnStart = true, initialCheckDelayMs = 5000 } = 
   // install on the next launch.
   autoUpdater.autoInstallOnAppQuit = true
 
-  // Initial state
+  // Initial state. Must include `currentVersion` so the state file
+  // gets refreshed to the actual binary version on every launch —
+  // otherwise a stale value (e.g. v1.0.10 from before a manual binary
+  // swap) would survive because writeState merges partial into base.
+  // The "Estás en la última versión" indicator in the Dashboard reads
+  // from this field; if it's stale the indicator shows the wrong
+  // version.
   bridge.writeState({
     status: 'idle',
+    currentVersion: getCurrentVersion(),
     installMethod: detectInstallMethod()
   })
 
