@@ -3,7 +3,6 @@ import {
   type MockFilterClause,
   type MockOrderClause,
   type MockPostgrestError,
-  type MockQuery,
   type MockQueryResult,
   type MockSupabaseClient,
   type QueryAction,
@@ -11,7 +10,18 @@ import {
 
 /**
  * Mock Supabase client for use in Browser / Client Components.
- * Redirects all queries to Next.js local SQLite API route.
+ *
+ * Pure in-memory mock — all queries resolve to `{ data: null, error: null }`.
+ * No network calls. The previous version fetched `/api/sqlite`, a route
+ * that was never created (verified dead in the 2026-06-27 SDD cycle,
+ * `openspec/changes/archive/2026-06-27-mvp-vida-core/design.md:533`).
+ *
+ * The `thenable` interface is preserved so existing component code
+ * (`const { data, error } = await supabase.from(...).select(...)`)
+ * continues to compile and run; components that depend on real data
+ * (e.g. `HabitList`, `Dashboard`) get `data: null` and render their
+ * empty state. Real data flows through the server-side bridge
+ * (`src/lib/supabase.ts`) used by API routes.
  */
 class MockQueryChain<Row, Result = Row[] | null> {
   table: string
@@ -81,44 +91,23 @@ class MockQueryChain<Row, Result = Row[] | null> {
   }
 
   throwOnError(): MockQueryChain<Row, Result> {
-    // No-op: the browser mock cannot throw because the `/api/sqlite`
-    // response is parsed and its `error` field surfaced through the
-    // `MockQueryResult` shape. Exposed for type compatibility only.
+    // No-op: the browser mock never throws. The chain's `then` resolves
+    // directly to `{ data: null, error: null }`. Exposed for type
+    // compatibility with the real supabase-js chain signature only.
     return this
   }
 
-  // Thenable interface to await the query chain directly
+  // Thenable interface to await the query chain directly.
+  // Pure mock: resolves to { data: null, error: null }.
   then<TResult1 = MockQueryResult<Result>, TResult2 = never>(
     onfulfilled?: ((value: MockQueryResult<Result>) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    _onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): PromiseLike<TResult1 | TResult2> {
     return (async () => {
-      try {
-        const res = await fetch('/api/sqlite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            table: this.table,
-            action: this.action,
-            args: this.args,
-            filters: this.filters,
-            order: this.orderBy,
-            single: this.singleRow,
-            maybeSingle: this.maybeSingleRow
-          })
-        })
-        const payload = (await res.json()) as MockQueryResult<Result>
-        return onfulfilled ? await Promise.resolve(onfulfilled(payload)) : (payload as unknown as TResult1)
-      } catch (err) {
-        const errPayload: MockQueryResult<Result> = {
-          data: null as Result,
-          error: { message: err instanceof Error ? err.message : String(err), code: 'SQLITE_ERROR' }
-        }
-        if (onrejected) {
-          return await Promise.resolve(onrejected(err))
-        }
-        return errPayload as unknown as TResult1
-      }
+      const payload: MockQueryResult<Result> = { data: null as Result, error: null }
+      return onfulfilled
+        ? await Promise.resolve(onfulfilled(payload))
+        : (payload as unknown as TResult1)
     })()
   }
 }
@@ -151,23 +140,9 @@ class MockBrowserClient implements MockSupabaseClient<MockDatabase> {
     return new MockQueryChain<MockDatabase['public']['Tables'][TableName]['Row']>(table)
   }
 
-  rpc(name: string, args?: Record<string, unknown>): Promise<MockQueryResult<unknown>> {
-    return (async () => {
-      try {
-        const res = await fetch('/api/sqlite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rpcName: name, rpcArgs: args } satisfies Partial<MockQuery>)
-        })
-        const payload = (await res.json()) as MockQueryResult<unknown>
-        return payload
-      } catch (err) {
-        return {
-          data: null,
-          error: { message: err instanceof Error ? err.message : String(err), code: 'SQLITE_ERROR' }
-        }
-      }
-    })()
+  rpc(_name: string, _args?: Record<string, unknown>): Promise<MockQueryResult<unknown>> {
+    // Pure mock: resolve to { data: null, error: null }.
+    return Promise.resolve({ data: null, error: null })
   }
 }
 
