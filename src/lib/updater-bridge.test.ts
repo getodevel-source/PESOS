@@ -65,6 +65,29 @@ describe('updater-bridge — writeState merge', () => {
     expect(state.status).toBe('checking')
     expect(state.progress).toBe(50)
   })
+
+  it('preserves the error field when a later writeState arrives (the user must keep seeing the failure)', async () => {
+    // Real flow: electron-updater fires the `error` event with
+    // { message, code }; the next event is often `checking-for-update`
+    // (status reset to 'checking') or `update-available` (a new version
+    // arrived). Without merge, a status: 'available' write would clobber
+    // the user's error and they would not see why the install failed.
+    const bridge = await loadBridge()
+
+    bridge.writeState({
+      status: 'error',
+      error: { message: 'dpkg: dependency problems prevent configuration', code: 'INSTALL_FAILED' }
+    })
+    bridge.writeState({ status: 'available', availableVersion: '1.0.8' })
+
+    const state = bridge.readState()
+    expect(state.status).toBe('available')
+    expect(state.availableVersion).toBe('1.0.8')
+    expect(state.error).toEqual({
+      message: 'dpkg: dependency problems prevent configuration',
+      code: 'INSTALL_FAILED'
+    })
+  })
 })
 
 describe('updater-bridge — readState / getState defaults', () => {
