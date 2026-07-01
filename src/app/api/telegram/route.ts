@@ -28,12 +28,9 @@ interface TelegramPayload {
 // Row aliases for the Supabase mock tables this route queries. Reusing the
 // canonical `MockDatabase` types keeps the route aligned with the schema
 // defined in `src/lib/sqlite-db.ts` instead of inventing a parallel type
-// system here. The single local extension (`HabitListItem`) covers a
-// pre-existing mismatch where this route reads `h.name` even though the
-// schema and the rest of the codebase (HabitList.tsx) use `title`.
+// system here. The `habits` table uses `title` (SQLite + Postgres agree).
 type TaskRow = MockDatabase['public']['Tables']['tasks']['Row']
 type HabitRow = MockDatabase['public']['Tables']['habits']['Row']
-type HabitListItem = HabitRow & { name: string }
 type HabitLogRow = MockDatabase['public']['Tables']['habit_logs']['Row']
 type TransactionRow = MockDatabase['public']['Tables']['transactions']['Row']
 type UpcomingTaskRow = Pick<TaskRow, 'title' | 'due_date' | 'description'>
@@ -70,7 +67,7 @@ async function buildUserContext(userId: string): Promise<string> {
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(30),
-      supabase.from('habits').select('id, name').eq('user_id', userId).limit(20),
+      supabase.from('habits').select('id, title').eq('user_id', userId).limit(20),
       supabase.from('habit_logs').select('habit_id').eq('log_date', todayStr),
       supabase
         .from('transactions')
@@ -90,7 +87,7 @@ async function buildUserContext(userId: string): Promise<string> {
     ])
 
   const tasks = (tasksResult.data || []) as TaskRow[]
-  const habits = (habitsResult.data || []) as HabitListItem[]
+  const habits = (habitsResult.data || []) as HabitRow[]
   const habitLogs = (logsResult.data || []) as HabitLogRow[]
   const transactions = (transactionsResult.data || []) as TransactionRow[]
   const upcoming = (upcomingResult.data || []) as UpcomingTaskRow[]
@@ -125,7 +122,7 @@ ${doneTasks.length === 0 ? '  • Ninguna' : doneTasks.map((t: TaskRow) => `  �
 ${upcoming.length === 0 ? '  • Sin recordatorios futuros' : upcoming.map((t: UpcomingTaskRow) => `  • ${t.title} — ${new Date(t.due_date!).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })} ${new Date(t.due_date!).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`).join('\n')}
 
 🔄 HÁBITOS (${completedHabitIds.size}/${habits.length} completados):
-${habits.length === 0 ? '  • Sin hábitos' : habits.map((h: HabitListItem) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.name}`).join('\n')}
+${habits.length === 0 ? '  • Sin hábitos' : habits.map((h: HabitRow) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.title}`).join('\n')}
 
 💰 FINANZAS HOY: Gastos $${expensesToday.toFixed(2)} | Ingresos $${incomeToday.toFixed(2)} | Balance $${(incomeToday - expensesToday).toFixed(2)}
 📊 30 DÍAS: Gastado $${expenses30d.toFixed(2)} | Ingresado $${income30d.toFixed(2)} | Balance $${(income30d - expenses30d).toFixed(2)}
@@ -302,11 +299,11 @@ async function handleCommand(
         return
       }
       const [{ data: habitsResult }, { data: logsResult }] = await Promise.all([
-        supabase.from('habits').select('id, name').eq('user_id', userId).limit(20),
+        supabase.from('habits').select('id, title').eq('user_id', userId).limit(20),
         supabase.from('habit_logs').select('habit_id').eq('log_date', todayStr),
       ])
 
-      const habits = (habitsResult || []) as HabitListItem[]
+      const habits = (habitsResult || []) as HabitRow[]
       const logs = (logsResult || []) as HabitLogRow[]
 
       if (habits.length === 0) {
@@ -316,7 +313,7 @@ async function handleCommand(
 
       const completedIds = new Set(logs.map((l: HabitLogRow) => l.habit_id))
       const list = habits
-        .map((h: HabitListItem) => `${completedIds.has(h.id) ? '✅' : '⬜'} ${h.name}`)
+        .map((h: HabitRow) => `${completedIds.has(h.id) ? '✅' : '⬜'} ${h.title}`)
         .join('\n')
       const pct = Math.round((completedIds.size / habits.length) * 100)
 

@@ -9,12 +9,9 @@ import { type MockDatabase } from '@/lib/sqlite-db'
 // Row aliases for the Supabase mock tables this route queries. Reusing the
 // canonical `MockDatabase` types keeps the route aligned with the schema
 // defined in `src/lib/sqlite-db.ts` instead of inventing a parallel type
-// system here. `HabitListItem` covers the same pre-existing mismatch where
-// this route reads `h.name` from the habits query even though the schema
-// (and HabitList.tsx) use `h.title`.
+// system here. The `habits` table uses `title` (SQLite + Postgres agree).
 type TaskRow = MockDatabase['public']['Tables']['tasks']['Row']
 type HabitRow = MockDatabase['public']['Tables']['habits']['Row']
-type HabitListItem = HabitRow & { name: string }
 type HabitLogRow = MockDatabase['public']['Tables']['habit_logs']['Row']
 type TransactionRow = MockDatabase['public']['Tables']['transactions']['Row']
 
@@ -62,7 +59,7 @@ async function buildUserContext(userId: string, monthlyBudgetLimit?: number): Pr
       // Habits
       supabase
         .from('habits')
-        .select('id, name, description')
+        .select('id, title, description')
         .eq('user_id', userId)
         .limit(20),
 
@@ -90,7 +87,7 @@ async function buildUserContext(userId: string, monthlyBudgetLimit?: number): Pr
     ])
 
   const tasks = (tasksResult.data || []) as TaskRow[]
-  const habits = (habitsResult.data || []) as HabitListItem[]
+  const habits = (habitsResult.data || []) as HabitRow[]
   const habitLogs = (logsResult.data || []) as HabitLogRow[]
   const transactions = (transactionsResult.data || []) as TransactionRow[]
   const upcoming = (upcomingResult.data || []) as TaskRow[]
@@ -180,7 +177,7 @@ ${upcoming.length === 0
         .join('\n')}
 
 🔄 HÁBITOS DEL DÍA (${completedHabitIds.size}/${habits.length} completados):
-${habits.length === 0 ? '  • Sin hábitos registrados' : habits.map((h) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.name}`).join('\n')}
+${habits.length === 0 ? '  • Sin hábitos registrados' : habits.map((h: HabitRow) => `  • ${completedHabitIds.has(h.id) ? '✓' : '○'} ${h.title}`).join('\n')}
 
 💰 FINANZAS DE HOY:
   • Gastos: $${totalExpensesToday.toFixed(2)}
