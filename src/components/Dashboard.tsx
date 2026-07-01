@@ -654,16 +654,30 @@ export default function Dashboard({ initialUser }: DashboardProps) {
             </div>
           )}
 
-          <div className="text-[9px] text-center text-slate-500 hover:text-slate-400 transition-colors pt-1">
-            Developed by{' '}
+          <div className="pt-1 space-y-0.5">
             <a
-              href="https://instagram.com/geto_dev"
+              href="https://github.com/getodevel-source/PESOS/releases"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-brand-indigo font-semibold hover:underline"
+              className="block text-[9px] text-center text-slate-500 hover:text-slate-300 transition-colors"
+              title="Ver releases en GitHub"
             >
-              @geto_dev
+              <span className="font-mono">v{updateCurrentVersion || '…'}</span>
+              {updateInstallMethod !== 'unknown' && (
+                <span className="text-slate-600"> · {updateInstallMethod === 'appimage' ? 'AppImage' : updateInstallMethod.toUpperCase()}</span>
+              )}
             </a>
+            <div className="text-[9px] text-center text-slate-500 hover:text-slate-400 transition-colors">
+              Developed by{' '}
+              <a
+                href="https://instagram.com/geto_dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-indigo font-semibold hover:underline"
+              >
+                @geto_dev
+              </a>
+            </div>
           </div>
         </div>
       </aside>
