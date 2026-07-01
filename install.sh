@@ -1,8 +1,21 @@
 #!/usr/bin/env bash
 # ============================================================
-# PESOS — Auto Installer
+# PESOS — First-time Installer
 # Detecta tu distribución de Linux e instala el paquete correcto
 # desde los Releases de GitHub.
+#
+# Este script es para la **primera instalación** (o una reinstalación
+# limpia si querés empezar de cero). Para otras operaciones:
+#
+#   - Actualizar Pesos cuando ya está instalado:
+#     Abrí la app, click en "Buscar actualizaciones" (funciona automático
+#     en la mayoría de los casos) o corré `bash scripts/update-appimage.sh`
+#     desde el repo clonado.
+#   - Reinstalación limpia preservando data (con prompt):
+#     `bash scripts/reinstall-pesos-clean.sh` desde el repo clonado.
+#   - Desinstalar:
+#     `rm -f ~/.local/bin/pesos ~/.local/share/applications/pesos.desktop
+#      ~/.local/share/icons/hicolor/256x256/apps/pesos.png`
 #
 # Uso:
 #   curl -fsSL https://raw.githubusercontent.com/getodevel-source/PESOS/main/install.sh | bash

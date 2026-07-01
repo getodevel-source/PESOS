@@ -71,6 +71,20 @@ rm -rf ~/.local/share/icons/hicolor/256x256/apps/pesos.png
 
 ---
 
+## 🛠️ Scripts del Proyecto
+
+El repo incluye tres scripts bash con propósitos distintos. Usá el correcto según lo que necesites:
+
+| Script | Cuándo usarlo | Qué hace |
+| --- | --- | --- |
+| `install.sh` (raíz) | **Primera instalación** | Detecta tu distro, baja la última release de GitHub, instala el .DEB (Debian/Ubuntu) o el AppImage (Arch/CachyOS) y crea el acceso directo. Idempotente: si ya está instalado, reinstala encima. |
+| `scripts/reinstall-pesos-clean.sh` | **Reinstalación limpia** | Borra el binario viejo (con backup), opcionalmente limpia `~/.config/pesos/` y `~/.cache/PESOS/`, descarga la última versión, instala. Interactivo — pregunta antes de borrar. |
+| `scripts/update-appimage.sh` | **Actualizar un AppImage ya instalado** | Detecta la versión actual (parsea el AppImage corriendo), consulta GitHub por la última release, valida el download (size, ELF magic, digest), respalda el binario, lo reemplaza. Idempotente y auto-validado. Útil cuando el in-app updater falla o se cuelga. |
+
+**Recomendación** para la mayoría de los updates: abrir la app y click "Buscar actualizaciones" en la sidebar. El in-app updater funciona transparentemente cuando puede. Solo recurrí a los scripts cuando el in-app updater falle (típicamente en Arch/CachyOS por las razones documentadas en el commit `4cbda20c`).
+
+---
+
 ## 🛠️ Desarrollo Local / Servidores
 
 Si querés correr el código fuente o montarlo 24/7 en un VPS, consultá la [Guía Completa de Desarrollo](./docs/DEVELOPMENT.md) o usá Docker:
