@@ -57,15 +57,14 @@ function readState() {
 
 function writeState(partial) {
   ensureStateDir()
+  // Spec Requirement 7: merge semantics so concurrent electron-updater
+  // events do not clobber unrelated fields. Read the existing state, spread
+  // it as the base, spread `partial` on top, and always refresh `timestamp`.
+  const base = readState()
   const payload = {
-    status: 'idle',
-    currentVersion: getCurrentVersion(),
-    availableVersion: null,
-    progress: 0,
-    releaseNotes: null,
-    error: null,
-    timestamp: Date.now(),
-    ...partial
+    ...base,
+    ...partial,
+    timestamp: Date.now()
   }
   try {
     fs.writeFileSync(STATE_PATH, JSON.stringify(payload, null, 2), 'utf8')
