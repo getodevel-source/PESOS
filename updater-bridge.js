@@ -19,6 +19,7 @@ const STATE_PATH = path.join(STATE_DIR, 'update-state.json')
 const CHECK_REQUEST_PATH = path.join(STATE_DIR, 'update-check-request')
 const DOWNLOAD_REQUEST_PATH = path.join(STATE_DIR, 'update-download-request')
 const INSTALL_REQUEST_PATH = path.join(STATE_DIR, 'update-install-request')
+const OPEN_DEB_REQUEST_PATH = path.join(STATE_DIR, 'update-open-deb-request')
 
 function ensureStateDir() {
   if (!fs.existsSync(STATE_DIR)) {
@@ -51,7 +52,8 @@ function readState() {
     progress: 0,
     releaseNotes: null,
     error: null,
-    timestamp: 0
+    timestamp: 0,
+    pendingPath: null
   }
 }
 
@@ -101,12 +103,17 @@ function requestInstall() {
   return writeRequestFile(INSTALL_REQUEST_PATH)
 }
 
+function requestOpenDeb() {
+  return writeRequestFile(OPEN_DEB_REQUEST_PATH)
+}
+
 module.exports = {
   // Used by the Next.js route
   getState,
   requestCheck,
   requestDownload,
   requestInstall,
+  requestOpenDeb,
   // Used by the Electron main process (updater.js)
   readState,
   writeState,
@@ -118,6 +125,7 @@ module.exports = {
     STATE_PATH,
     CHECK_REQUEST_PATH,
     DOWNLOAD_REQUEST_PATH,
-    INSTALL_REQUEST_PATH
+    INSTALL_REQUEST_PATH,
+    OPEN_DEB_REQUEST_PATH
   }
 }

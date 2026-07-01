@@ -106,7 +106,8 @@ describe('updater-bridge — readState / getState defaults', () => {
       progress: 0,
       releaseNotes: null,
       error: null,
-      timestamp: 0
+      timestamp: 0,
+      pendingPath: null
     })
   })
 

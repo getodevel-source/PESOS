@@ -3,7 +3,8 @@ import {
   getState,
   requestCheck,
   requestDownload,
-  requestInstall
+  requestInstall,
+  requestOpenDeb
 } from '@/lib/updater-bridge'
 
 export const dynamic = 'force-dynamic'
@@ -21,7 +22,7 @@ export async function GET() {
   }
 }
 
-// POST /api/update { action: 'check' | 'download' | 'install' }
+// POST /api/update { action: 'check' | 'download' | 'install' | 'openDeb' }
 // Triggers the corresponding electron-updater action via a file-based
 // request that the main process polls every second. The action does not
 // block — the UI should re-poll GET /api/update to observe progress.
@@ -42,9 +43,24 @@ export async function POST(request: NextRequest) {
       const ok = requestInstall()
       return NextResponse.json({ ok, action, message: 'Instalación de actualización solicitada. La app se va a reiniciar.' })
     }
+    if (action === 'openDeb') {
+      // Fallback: when pkexec / dpkg fails (or pkexec dialog never
+      // appears), the user can ask the main process to open the
+      // downloaded .deb with the OS default handler (gnome-software,
+      // kde-discover, file manager, etc.).
+      const state = getState()
+      if (!state.pendingPath) {
+        return NextResponse.json(
+          { error: 'No hay un .deb descargado. Volvé a buscar actualizaciones.' },
+          { status: 409 }
+        )
+      }
+      const ok = requestOpenDeb()
+      return NextResponse.json({ ok, action, message: `Abriendo ${state.pendingPath} con el manejador del sistema.` })
+    }
 
     return NextResponse.json(
-      { error: `Acción desconocida: ${String(action)}. Usar 'check', 'download' o 'install'.` },
+      { error: `Acción desconocida: ${String(action)}. Usar 'check', 'download', 'install' o 'openDeb'.` },
       { status: 400 }
     )
   } catch (err: unknown) {

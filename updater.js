@@ -6,15 +6,37 @@
 // the Next.js route without pulling in `electron` at build time.
 
 const fs = require('fs')
+const path = require('path')
+const os = require('os')
 const { autoUpdater } = require('electron-updater')
+const { shell } = require('electron')
 
 const bridge = require('./updater-bridge')
 
 const {
   CHECK_REQUEST_PATH,
   DOWNLOAD_REQUEST_PATH,
-  INSTALL_REQUEST_PATH
+  INSTALL_REQUEST_PATH,
+  OPEN_DEB_REQUEST_PATH
 } = bridge._paths
+
+// Locate the .deb that electron-updater just downloaded. The library
+// stores it at <cache>/<appName>/pending/<filename>, but exposes no public
+// getter for the path. We scan the dir on `update-downloaded` and store
+// the first .deb we find; that's the one we want to install (or open
+// manually as a fallback if pkexec / dpkg is unavailable).
+function findPendingDebPath() {
+  const pendingDir = path.join(os.homedir(), '.cache', 'PESOS', 'pending')
+  try {
+    if (!fs.existsSync(pendingDir)) return null
+    const files = fs.readdirSync(pendingDir).filter((f) => f.endsWith('.deb'))
+    if (files.length === 0) return null
+    return path.join(pendingDir, files[0])
+  } catch (err) {
+    console.error('updater: failed to scan pending dir:', err)
+    return null
+  }
+}
 
 let _checkInFlight = false
 let _downloadInFlight = false
@@ -68,7 +90,9 @@ function setupAutoUpdater({ checkOnStart = true, initialCheckDelayMs = 5000 } = 
     bridge.writeState({
       status: 'downloaded',
       availableVersion: info && info.version ? info.version : null,
-      progress: 100
+      progress: 100,
+      pendingPath: findPendingDebPath(),
+      error: null
     })
   })
 
@@ -126,10 +150,59 @@ function setupAutoUpdater({ checkOnStart = true, initialCheckDelayMs = 5000 } = 
     if (fs.existsSync(INSTALL_REQUEST_PATH)) {
       try {
         fs.unlinkSync(INSTALL_REQUEST_PATH)
+        // Best-effort UX: set 'installing' state BEFORE the app exits so
+        // the renderer can show a spinner / fallback. The app may exit
+        // before this write is observed — that's fine; if the install
+        // succeeds the new process takes over, and if it fails the
+        // 'error' event will fire (or the next launch will see the old
+        // state and the user can retry from the 'downloaded' panel).
+        bridge.writeState({ status: 'installing' })
         // isSilent=false: let the OS show its update UI. isForceRunAfter=true.
         autoUpdater.quitAndInstall(false, true)
       } catch (err) {
         console.error('updater: failed to handle install request:', err)
+        bridge.writeState({
+          status: 'error',
+          error: (err && err.message) ? err.message : String(err)
+        })
+      }
+    }
+
+    // 4) Open deb manually request (fallback when pkexec / dpkg fails)
+    if (fs.existsSync(OPEN_DEB_REQUEST_PATH)) {
+      try {
+        fs.unlinkSync(OPEN_DEB_REQUEST_PATH)
+        const state = bridge.readState()
+        if (state.pendingPath && fs.existsSync(state.pendingPath)) {
+          // shell.openPath returns a string error message if it fails
+          // (empty string on success). On Debian/Ubuntu the OS launches
+          // gnome-software / kde-discover; on CachyOS or systems without
+          // a DEB handler the user gets the file manager fallback.
+          shell.openPath(state.pendingPath).then((errMsg) => {
+            if (errMsg) {
+              bridge.writeState({
+                status: 'error',
+                error: `No se pudo abrir el .deb automáticamente: ${errMsg}. Instalalo manualmente desde ${state.pendingPath}`
+              })
+            }
+          }).catch((err) => {
+            bridge.writeState({
+              status: 'error',
+              error: `Error abriendo el .deb: ${err && err.message ? err.message : String(err)}`
+            })
+          })
+        } else {
+          bridge.writeState({
+            status: 'error',
+            error: 'No hay un .deb descargado para abrir. Volvé a buscar actualizaciones.'
+          })
+        }
+      } catch (err) {
+        console.error('updater: failed to handle open-deb request:', err)
+        bridge.writeState({
+          status: 'error',
+          error: (err && err.message) ? err.message : String(err)
+        })
       }
     }
   }, 1000)

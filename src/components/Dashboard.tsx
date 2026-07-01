@@ -74,13 +74,14 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const [isCloseDayOpen, setIsCloseDayOpen] = useState(false)
 
   // Update states (electron-updater flow)
-  // status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'>('idle')
+  // status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'installing' | 'error'
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'installing' | 'error'>('idle')
   const [updateCurrentVersion, setUpdateCurrentVersion] = useState('')
   const [updateAvailableVersion, setUpdateAvailableVersion] = useState<string | null>(null)
   const [updateProgress, setUpdateProgress] = useState(0)
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [updateBusy, setUpdateBusy] = useState(false)
+  const [updatePendingPath, setUpdatePendingPath] = useState<string | null>(null)
 
   const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
@@ -105,6 +106,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         if (data.error === null || typeof data.error === 'string') {
           setUpdateError(data.error ?? null)
         }
+        if (data.pendingPath === null || typeof data.pendingPath === 'string') {
+          setUpdatePendingPath(data.pendingPath ?? null)
+        }
       } catch (err) {
         console.error('Failed to poll updater state:', err)
       }
@@ -114,7 +118,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
-  const sendUpdateAction = async (action: 'check' | 'download' | 'install') => {
+  const sendUpdateAction = async (action: 'check' | 'download' | 'install' | 'openDeb') => {
     setUpdateBusy(true)
     setUpdateError(null)
     try {
@@ -130,6 +134,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
       // Optimistic status bump; the poller will reconcile.
       if (action === 'check') setUpdateStatus('checking')
       if (action === 'download') setUpdateStatus('downloading')
+      if (action === 'install') setUpdateStatus('installing')
     } catch (err: unknown) {
       setUpdateError(err instanceof Error ? err.message : 'Error al solicitar la actualización.')
     } finally {
@@ -140,6 +145,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const checkAppUpdate = () => sendUpdateAction('check')
   const handleStartDownload = () => sendUpdateAction('download')
   const handleInstall = () => sendUpdateAction('install')
+  const handleOpenDeb = () => sendUpdateAction('openDeb')
 
   // Notification states and refs
   const notifiedTasksRef = useRef<Set<string>>(new Set())
@@ -542,7 +548,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
             Cerrar Sesión
           </button>
           {/* Update Section (electron-updater state) */}
-          {(updateStatus === 'available' || updateStatus === 'downloading' || updateStatus === 'downloaded') && (
+          {(updateStatus === 'available' || updateStatus === 'downloading' || updateStatus === 'downloaded' || updateStatus === 'installing') && (
             <div className="p-2.5 rounded border border-indigo-500/20 bg-indigo-500/5 space-y-2 flex flex-col">
               <div className="flex items-center gap-1.5 text-indigo-400">
                 <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -580,15 +586,15 @@ export default function Dashboard({ initialUser }: DashboardProps) {
                 </div>
               )}
 
-              {updateStatus === 'downloaded' && (
+              {(updateStatus === 'downloaded' || updateStatus === 'installing') && (
                 <button
                   type="button"
                   onClick={handleInstall}
-                  disabled={updateBusy}
+                  disabled={updateBusy || updateStatus === 'installing'}
                   className="w-full flex items-center justify-center gap-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-bold rounded transition-all shadow-md shadow-emerald-600/10 disabled:opacity-50"
                 >
-                  <Download className="h-3 w-3 shrink-0" />
-                  Instalar y reiniciar
+                  <Download className={`h-3 w-3 shrink-0 ${updateStatus === 'installing' ? 'animate-pulse' : ''}`} />
+                  {updateStatus === 'installing' ? 'Aplicando actualización…' : 'Instalar y reiniciar'}
                 </button>
               )}
 
@@ -609,6 +615,18 @@ export default function Dashboard({ initialUser }: DashboardProps) {
               <p className="text-[9px] text-slate-400 leading-snug">
                 {updateError || 'No se pudo verificar la actualización.'}
               </p>
+              {updatePendingPath && (
+                <button
+                  type="button"
+                  onClick={handleOpenDeb}
+                  disabled={updateBusy}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 bg-panel border border-indigo-500/30 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 text-[9px] font-bold rounded transition-all disabled:opacity-50"
+                  title={updatePendingPath}
+                >
+                  <Download className="h-3 w-3 shrink-0" />
+                  Abrir el .deb manualmente
+                </button>
+              )}
               <button
                 type="button"
                 onClick={checkAppUpdate}

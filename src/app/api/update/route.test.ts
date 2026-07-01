@@ -7,16 +7,18 @@ vi.mock('@/lib/updater-bridge', () => ({
   getState: vi.fn(),
   requestCheck: vi.fn(),
   requestDownload: vi.fn(),
-  requestInstall: vi.fn()
+  requestInstall: vi.fn(),
+  requestOpenDeb: vi.fn()
 }))
 
 import { GET, POST } from './route'
-import { getState, requestCheck, requestDownload, requestInstall } from '@/lib/updater-bridge'
+import { getState, requestCheck, requestDownload, requestInstall, requestOpenDeb } from '@/lib/updater-bridge'
 
 const mockedGetState = vi.mocked(getState)
 const mockedRequestCheck = vi.mocked(requestCheck)
 const mockedRequestDownload = vi.mocked(requestDownload)
 const mockedRequestInstall = vi.mocked(requestInstall)
+const mockedRequestOpenDeb = vi.mocked(requestOpenDeb)
 
 function makeJsonRequest(body: unknown): Request {
   return new Request('http://localhost/api/update', {
@@ -140,6 +142,52 @@ describe('Update route — POST', () => {
     expect(mockedRequestInstall).toHaveBeenCalledTimes(1)
     const body = await res.json()
     expect(body.action).toBe('install')
+  })
+
+  it('routes action=openDeb to requestOpenDeb() when a pending .deb exists', async () => {
+    // The renderer asks to open the downloaded .deb manually when the
+    // pkexec dialog never appears or dpkg is missing. The route must
+    // surface the pendingPath so the main process can shell.openPath it.
+    mockedGetState.mockReturnValue({
+      status: 'downloaded',
+      currentVersion: '1.0.7',
+      availableVersion: '1.0.8',
+      progress: 100,
+      releaseNotes: null,
+      error: null,
+      timestamp: Date.now(),
+      pendingPath: '/home/user/.cache/PESOS/pending/pesos_1.0.8_amd64.deb'
+    })
+    mockedRequestOpenDeb.mockReturnValue(true)
+
+    const res = await POST(makeJsonRequest({ action: 'openDeb' }) as unknown as import('next/server').NextRequest)
+    expect(res.status).toBe(200)
+    expect(mockedRequestOpenDeb).toHaveBeenCalledTimes(1)
+    const body = await res.json()
+    expect(body.action).toBe('openDeb')
+    expect(body.message).toContain('pesos_1.0.8_amd64.deb')
+  })
+
+  it('rejects action=openDeb with 409 when no .deb is pending', async () => {
+    // The renderer's "Abrir el .deb manualmente" button only appears when
+    // pendingPath is set, but the route must defend itself against direct
+    // calls in that state.
+    mockedGetState.mockReturnValue({
+      status: 'idle',
+      currentVersion: '1.0.7',
+      availableVersion: null,
+      progress: 0,
+      releaseNotes: null,
+      error: null,
+      timestamp: Date.now(),
+      pendingPath: null
+    })
+
+    const res = await POST(makeJsonRequest({ action: 'openDeb' }) as unknown as import('next/server').NextRequest)
+    expect(res.status).toBe(409)
+    expect(mockedRequestOpenDeb).not.toHaveBeenCalled()
+    const body = await res.json()
+    expect(body.error).toContain('No hay un .deb descargado')
   })
 
   it('rejects unknown actions with 400', async () => {
