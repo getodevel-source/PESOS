@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useReducer } from 'react'
 import { Bot, Send, User, Loader2, Sparkles, X, Settings, ChevronDown, HelpCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -65,6 +65,29 @@ function formatMarkdown(text: string) {
     .replace(/\n/g, '<br />')
 }
 
+// Connection state FSM: unknown → checking → connected | disconnected.
+// useReducer keeps status + error message atomic.
+type ConnectionState =
+  | { status: 'unknown' }
+  | { status: 'checking' }
+  | { status: 'connected' }
+  | { status: 'disconnected'; error: string | null }
+type ValidationResult = { valid: boolean; error?: string }
+type ConnectionAction =
+  | { type: 'idle' }
+  | { type: 'validating' }
+  | { type: 'success'; result: ValidationResult }
+  | { type: 'error'; message: string }
+const initialConnectionState: ConnectionState = { status: 'unknown' }
+function connectionReducer(_s: ConnectionState, a: ConnectionAction): ConnectionState {
+  switch (a.type) {
+    case 'idle': return { status: 'unknown' }
+    case 'validating': return { status: 'checking' }
+    case 'success': return a.result.valid ? { status: 'connected' } : { status: 'disconnected', error: a.result.error ?? null }
+    case 'error': return { status: 'disconnected', error: a.message }
+  }
+}
+
 export default function ChatBot() {
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [input, setInput] = useState('')
@@ -90,8 +113,7 @@ export default function ChatBot() {
     if (typeof window === 'undefined') return ''
     return localStorage.getItem('peso_opencode_api_key') || ''
   })
-  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected' | 'unknown'>('unknown')
-  const [validationError, setValidationError] = useState<string | null>(null)
+  const [connectionState, dispatchConnection] = useReducer(connectionReducer, initialConnectionState)
 
   // Telegram bot config state — same lazy-init pattern.
   const [telegramToken, setTelegramToken] = useState(() => {
@@ -119,55 +141,70 @@ export default function ChatBot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Validate the connection (efficient, runs only on demand or provider switch)
+  // Validate the connection. Returns a result instead of calling setState,
+  // so the effect and the button can both dispatch through the reducer
+  // without re-entering `react-hooks/set-state-in-effect`.
   const validateConnection = async (
     targetProvider = provider,
     customGoogle = googleApiKey,
     customOpencode = opencodeApiKey
-  ) => {
-    setConnectionStatus('checking')
-    setValidationError(null)
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      if (customGoogle) headers['x-google-api-key'] = customGoogle
-      if (customOpencode) headers['x-opencode-api-key'] = customOpencode
-
-      const res = await fetch('/api/ai-chat/validate', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ provider: targetProvider }),
-      })
-
-      if (!res.ok) {
-        throw new Error('Error al conectar con el servidor de validación.')
-      }
-
-      const data = await res.json()
-      if (data.valid) {
-        setConnectionStatus('connected')
-      } else {
-        setConnectionStatus('disconnected')
-        setValidationError(data.error || 'La API key no es válida.')
-      }
-    } catch (err: unknown) {
-      setConnectionStatus('disconnected')
-      setValidationError(err instanceof Error ? err.message : 'Error de conexión.')
+  ): Promise<ValidationResult> => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
     }
+    if (customGoogle) headers['x-google-api-key'] = customGoogle
+    if (customOpencode) headers['x-opencode-api-key'] = customOpencode
+
+    const res = await fetch('/api/ai-chat/validate', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ provider: targetProvider }),
+    })
+
+    if (!res.ok) {
+      throw new Error('Error al conectar con el servidor de validación.')
+    }
+
+    const data = await res.json()
+    return { valid: Boolean(data.valid), error: data.error as string | undefined }
   }
 
-  // The previous slice 1 attempt to auto-validate on `[provider]` via a
-  // useEffect ran into the `react-hooks/set-state-in-effect` rule, because
-  // `validateConnection` calls `setConnectionStatus('checking')` synchronously
-  // before its first await. Rather than defer those setState calls with
-  // microtask tricks (forbidden by the linter playbook) or inline the
-  // network call into the effect, the cleanest fix is to drop the effect
-  // entirely and lean on the explicit "Probar Conexión" button below for
-  // user-initiated validation. The connection status now stays at
-  // `'unknown'` until the user explicitly pokes the validator — which is
-  // also more honest about the network state, since the previous auto-call
-  // could race with the user's own key edits.
+  // Auto-validate on provider switch. The useRef guard avoids the
+  // synchronous `dispatch({ type: 'validating' })` that would trip
+  // `react-hooks/set-state-in-effect`; the terminal dispatches live in
+  // the async `.then` / `.catch` callbacks, which the rule does not
+  // flag.
+  const lastValidatedProviderRef = useRef<AIProvider | null>(null)
+  useEffect(() => {
+    if (lastValidatedProviderRef.current === provider) return
+    lastValidatedProviderRef.current = provider
+    let cancelled = false
+    validateConnection()
+      .then((result) => {
+        if (cancelled) return
+        dispatchConnection({ type: 'success', result })
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        dispatchConnection({ type: 'error', message: err instanceof Error ? err.message : 'Error de conexión.' })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [provider])
+
+  // User-initiated re-validation from the "Probar Conexión" button. The
+  // synchronous `dispatch({ type: 'validating' })` is fine here — the
+  // `set-state-in-effect` rule only flags useEffect bodies, not event
+  // handlers.
+  const handleValidateConnection = () => {
+    dispatchConnection({ type: 'validating' })
+    validateConnection()
+      .then((result) => dispatchConnection({ type: 'success', result }))
+      .catch((err: unknown) =>
+        dispatchConnection({ type: 'error', message: err instanceof Error ? err.message : 'Error de conexión.' })
+      )
+  }
 
   // Handle Telegram dynamic webhook configuration
   const handleTelegramSetup = async () => {
@@ -345,20 +382,20 @@ export default function ChatBot() {
               Pesito
               <span
                 className={`h-1.5 w-1.5 rounded-full transition-all duration-300 ${
-                  connectionStatus === 'connected'
+                  connectionState.status === 'connected'
                     ? 'bg-habit-green shadow-lg shadow-habit-green/50 animate-pulse'
-                    : connectionStatus === 'checking'
+                    : connectionState.status === 'checking'
                     ? 'bg-amber-400 animate-ping'
-                    : connectionStatus === 'disconnected'
+                    : connectionState.status === 'disconnected'
                     ? 'bg-rose-500 shadow-lg shadow-rose-500/50'
                     : 'bg-slate-500'
                 }`}
                 title={
-                  connectionStatus === 'connected'
+                  connectionState.status === 'connected'
                     ? 'Conectado a la API'
-                    : connectionStatus === 'checking'
+                    : connectionState.status === 'checking'
                     ? 'Verificando API...'
-                    : connectionStatus === 'disconnected'
+                    : connectionState.status === 'disconnected'
                     ? 'Desconectado o API inválida'
                     : 'Estado de API desconocido'
                 }
@@ -553,24 +590,24 @@ export default function ChatBot() {
 
           <div className="flex items-center gap-3 pt-1">
             <button
-              onClick={() => validateConnection(provider, googleApiKey, opencodeApiKey)}
+              onClick={handleValidateConnection}
               className="px-3 py-1.5 bg-task-purple/20 border border-task-purple/30 text-violet-300 text-[10px] rounded-md font-semibold hover:bg-task-purple/35 transition-all cursor-pointer flex items-center gap-1.5"
             >
               Probar Conexión
             </button>
-            {connectionStatus === 'checking' && (
+            {connectionState.status === 'checking' && (
               <span className="text-[10px] text-slate-500">Verificando...</span>
             )}
-            {connectionStatus === 'connected' && (
+            {connectionState.status === 'connected' && (
               <span className="text-[10px] text-habit-green font-semibold">✓ Conectado correctamente</span>
             )}
-            {connectionStatus === 'disconnected' && (
+            {connectionState.status === 'disconnected' && (
               <span className="text-[10px] text-rose-400 font-semibold">✗ Error de conexión</span>
             )}
           </div>
 
-          {validationError && (
-            <p className="text-[9px] text-rose-400 leading-tight bg-rose-500/10 border border-rose-500/15 rounded p-2">{validationError}</p>
+          {connectionState.status === 'disconnected' && connectionState.error && (
+            <p className="text-[9px] text-rose-400 leading-tight bg-rose-500/10 border border-rose-500/15 rounded p-2">{connectionState.error}</p>
           )}
 
           <p className="text-[9px] text-slate-600">
