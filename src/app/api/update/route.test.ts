@@ -60,6 +60,51 @@ describe('Update route — GET', () => {
     const body = await res.json()
     expect(body.error).toContain('disk full')
   })
+
+  it('returns a response with all 7 bridge fields', async () => {
+    // Mock the full readState contract shape. The route must serialize
+    // every field as-is; the renderer reads them as a state object.
+    mockedGetState.mockReturnValue({
+      status: 'available',
+      currentVersion: '1.0.4',
+      availableVersion: '1.0.5',
+      progress: 0,
+      releaseNotes: 'Hardening',
+      error: null,
+      timestamp: 1700000000000
+    })
+
+    const res = await GET()
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('available')
+    expect(body.currentVersion).toBe('1.0.4')
+    expect(body.availableVersion).toBe('1.0.5')
+    expect(body.progress).toBe(0)
+    expect(body.releaseNotes).toBe('Hardening')
+    expect(body.error).toBe(null)
+    expect(body.timestamp).toBe(1700000000000)
+  })
+
+  it('reflects a recent writeState({ status: "downloading", progress: 50 }) call', async () => {
+    // Simulates the bridge having just persisted a 'downloading' state
+    // with 50% progress — the route must surface that exact shape.
+    mockedGetState.mockReturnValue({
+      status: 'downloading',
+      currentVersion: '1.0.6',
+      availableVersion: '1.0.7',
+      progress: 50,
+      releaseNotes: null,
+      error: null,
+      timestamp: Date.now()
+    })
+
+    const res = await GET()
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.status).toBe('downloading')
+    expect(body.progress).toBe(50)
+  })
 })
 
 describe('Update route — POST', () => {
