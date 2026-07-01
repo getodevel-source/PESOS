@@ -96,9 +96,12 @@ async function startTelegramPoll() {
           offset = update.update_id + 1
 
           // Forward the Telegram update payload locally to Next.js API
-          fetch(`http://localhost:3000/api/telegram?secret=${token}`, {
+          fetch('http://localhost:3000/api/telegram', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Webhook-Secret': token
+            },
             body: JSON.stringify(update)
           }).catch((err) => {
             console.error('Failed to forward update locally to Next.js handler:', err)

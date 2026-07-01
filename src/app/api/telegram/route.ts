@@ -514,8 +514,10 @@ export async function POST(request: NextRequest) {
       return new NextResponse('Forbidden: loopback only', { status: 403 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const secret = searchParams.get('secret')
+    // Δ1: webhook auth via X-Webhook-Secret header (not query string).
+    // Query strings are logged by proxies and the browser DevTools;
+    // headers are not. Local loopback only (see check above).
+    const secret = request.headers.get('x-webhook-secret')
     const token = process.env.TELEGRAM_BOT_TOKEN
 
     if (!token || secret !== token) {

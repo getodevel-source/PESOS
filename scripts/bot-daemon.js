@@ -67,10 +67,13 @@ async function startTelegramPoll() {
           offset = update.update_id + 1
 
           // Forward the Telegram update payload locally to Next.js API
-          const targetUrl = `${serverUrl}/api/telegram?secret=${token}`
+          const targetUrl = `${serverUrl}/api/telegram`
           fetch(targetUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Webhook-Secret': token
+            },
             body: JSON.stringify(update)
           })
           .then((response) => {

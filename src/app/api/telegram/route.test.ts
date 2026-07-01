@@ -154,7 +154,7 @@ describe('Telegram Webhook Route Handler', () => {
     process.env = originalEnv
   })
 
-  it('should return 401 if secret query parameter is missing', async () => {
+  it('should return 401 if X-Webhook-Secret header is missing', async () => {
     const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
       body: JSON.stringify({ message: { text: 'hello' } }),
@@ -165,9 +165,10 @@ describe('Telegram Webhook Route Handler', () => {
     expect(await response.text()).toBe('Unauthorized')
   })
 
-  it('should return 401 if secret query parameter is invalid', async () => {
-    const request = new NextRequest('http://localhost/api/telegram?secret=wrong_token', {
+  it('should return 401 if X-Webhook-Secret header is invalid', async () => {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'wrong_token' },
       body: JSON.stringify({ message: { text: 'hello' } }),
     })
 
@@ -176,8 +177,9 @@ describe('Telegram Webhook Route Handler', () => {
   })
 
   it('should return 400 if JSON payload is invalid', async () => {
-    const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'test_token' },
       body: 'invalid-json',
     })
 
@@ -188,8 +190,9 @@ describe('Telegram Webhook Route Handler', () => {
   })
 
   it('should return 400 if payload is not an object', async () => {
-    const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'test_token' },
       body: JSON.stringify('not-an-object'),
     })
 
@@ -216,11 +219,11 @@ describe('Telegram Webhook Route Handler', () => {
       },
     }
 
-    const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'test_token' },
       body: JSON.stringify(payload),
     })
-
     const response = await POST(request)
     expect(response.status).toBe(200)
 
@@ -259,11 +262,11 @@ describe('Telegram Webhook Route Handler', () => {
       },
     }
 
-    const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'test_token' },
       body: JSON.stringify(payload),
     })
-
     const response = await POST(request)
     expect(response.status).toBe(200)
 
@@ -301,11 +304,11 @@ describe('Telegram Webhook Route Handler', () => {
       },
     }
 
-    const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'test_token' },
       body: JSON.stringify(payload),
     })
-
     const response = await POST(request)
     expect(response.status).toBe(200)
 
@@ -322,11 +325,11 @@ describe('Telegram Webhook Route Handler', () => {
     mockThrowOnError.mockRejectedValueOnce(new Error('Database insertion failed'))
 
     const payload = { message: { text: 'fail-insert' } }
-    const request = new NextRequest('http://localhost/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://localhost/api/telegram', {
       method: 'POST',
+      headers: { 'X-Webhook-Secret': 'test_token' },
       body: JSON.stringify(payload),
     })
-
     const response = await POST(request)
     expect(response.status).toBe(500)
     const json = await response.json()
@@ -336,9 +339,9 @@ describe('Telegram Webhook Route Handler', () => {
   // ─── Δ1: loopback guard ────────────────────────────────────────────────────
   it('loopback host accepted: Host: 127.0.0.1:3000 → 200', async () => {
     const payload = { message: { text: 'loopback-ok' } }
-    const request = new NextRequest('http://127.0.0.1:3000/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://127.0.0.1:3000/api/telegram', {
       method: 'POST',
-      headers: { host: '127.0.0.1:3000' },
+      headers: { 'X-Webhook-Secret': 'test_token', host: '127.0.0.1:3000' },
       body: JSON.stringify(payload),
     })
 
@@ -348,7 +351,7 @@ describe('Telegram Webhook Route Handler', () => {
 
   it('remote host rejected: Host: evil.example.com → 403 (regardless of secret)', async () => {
     const payload = { message: { text: 'remote-attack' } }
-    const request = new NextRequest('http://evil.example.com/api/telegram?secret=test_token', {
+    const request = new NextRequest('http://evil.example.com/api/telegram', {
       method: 'POST',
       headers: { host: 'evil.example.com' },
       body: JSON.stringify(payload),
