@@ -42,13 +42,31 @@ function ensureStateDir() {
 }
 
 function getCurrentVersion() {
-  try {
-    const pkgPath = path.join(__dirname, 'package.json')
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
-    return pkg.version
-  } catch {
-    return '0.0.0'
+  // Try multiple candidate paths because the bridge lives at the
+  // project root in source (so __dirname is the project root, where
+  // package.json sits) but in the packaged AppImage electron-builder
+  // places it at resources/app/updater-bridge.js (so package.json is
+  // alongside it in the same dir — still __dirname). That works for
+  // both. But on some AppImage runtimes __dirname can resolve oddly
+  // when the file is loaded via a FUSE mount — fall back to
+  // process.resourcesPath (set by Electron to the resources dir, e.g.
+  // <AppImage>/resources) joined with 'app/package.json'.
+  const candidates = [
+    path.join(__dirname, 'package.json'),
+  ]
+  if (process.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, 'app', 'package.json'))
+    candidates.push(path.join(process.resourcesPath, 'package.json'))
   }
+  for (const candidate of candidates) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(candidate, 'utf8'))
+      if (pkg && pkg.version) return pkg.version
+    } catch {
+      // try next candidate
+    }
+  }
+  return '0.0.0'
 }
 
 function readState() {
