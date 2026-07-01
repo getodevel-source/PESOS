@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Bot, Sparkles, Key, CheckCircle2, XCircle, Loader2, ArrowRight, ExternalLink } from 'lucide-react'
 
 interface FieldState {
@@ -116,7 +117,7 @@ export default function SetupWizard() {
 
         {/* Header */}
         <div className="text-center space-y-2">
-          <img src="/logo.png" alt="PESOS" className="h-16 w-16 mx-auto object-contain rounded-2xl shadow-md border border-white/5" />
+          <Image src="/logo.png" alt="PESOS" width={64} height={64} preload className="h-16 w-16 mx-auto object-contain rounded-2xl shadow-md border border-white/5" />
           <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-indigo-400 bg-clip-text text-transparent">
             Bienvenido a PESOS
           </h1>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import Image from 'next/image'
 import { LogOut, CheckCircle2, User, Cloud, Sun, CloudLightning, Calendar, CheckSquare, Smile, RefreshCw, X, LayoutDashboard, Award, BookOpen, DollarSign, Bot, Utensils, Download, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 import { type MockDatabase } from '@/lib/sqlite-db'
@@ -387,7 +388,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         {/* Sidebar Header / Logo */}
         <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Pesos Logo" className="h-7 w-7 object-contain rounded-md" />
+            <Image src="/logo.png" alt="Pesos Logo" width={28} height={28} className="h-7 w-7 object-contain rounded-md" />
             <div>
               <h1 className="text-xs font-bold tracking-tight text-foreground">
                 Pesos
@@ -638,7 +639,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         {/* Mobile Header */}
         <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 border-b border-border-primary bg-panel/90 backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="Pesos Logo" className="h-5 w-5 object-contain rounded-md" />
+            <Image src="/logo.png" alt="Pesos Logo" width={20} height={20} className="h-5 w-5 object-contain rounded-md" />
             <span className="text-xs font-bold text-foreground">Pesos</span>
           </div>
           <div className="flex items-center gap-1.5">

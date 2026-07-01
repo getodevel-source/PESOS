@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -79,7 +80,7 @@ export default function AuthForm() {
           </button>
         )}
         <div className="text-center mb-8 flex flex-col items-center">
-          <img src="/logo.png" alt="Pesos Logo" className="h-20 w-20 mb-3 object-contain rounded-2xl shadow-md border border-white/5" />
+          <Image src="/logo.png" alt="Pesos Logo" width={80} height={80} preload className="h-20 w-20 mb-3 object-contain rounded-2xl shadow-md border border-white/5" />
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Pesos
           </h1>
