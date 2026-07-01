@@ -83,6 +83,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updatePendingPath, setUpdatePendingPath] = useState<string | null>(null)
   const [updateInstallMethod, setUpdateInstallMethod] = useState<'appimage' | 'deb' | 'unknown'>('unknown')
+  // Timestamp of the last successful check. Drives the "Estás en la
+  // última versión" indicator. 0 = never checked in this session.
+  const [updateCheckedAt, setUpdateCheckedAt] = useState(0)
 
   const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
@@ -112,6 +115,18 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         }
         if (data.installMethod === 'appimage' || data.installMethod === 'deb' || data.installMethod === 'unknown') {
           setUpdateInstallMethod(data.installMethod)
+        }
+        // "Up to date" detection: when the poller sees status=idle (no
+        // update in progress) AND currentVersion equals availableVersion
+        // (or availableVersion is null), mark the check as successful.
+        // This drives the "Estás en la última versión" indicator that
+        // gives feedback after the user clicks "Buscar actualizaciones".
+        if (
+          data.status === 'idle' &&
+          typeof data.currentVersion === 'string' &&
+          (data.availableVersion === null || data.availableVersion === data.currentVersion)
+        ) {
+          setUpdateCheckedAt(Date.now())
         }
       } catch (err) {
         console.error('Failed to poll updater state:', err)
@@ -545,6 +560,15 @@ export default function Dashboard({ initialUser }: DashboardProps) {
             <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${updateStatus === 'checking' ? 'animate-spin' : ''}`} />
             {updateStatus === 'checking' ? 'Buscando...' : 'Buscar actualizaciones'}
           </button>
+          {/* "Up to date" feedback — shown after a check confirms the local
+              version equals the latest GitHub release. Without this, clicking
+              "Buscar actualizaciones" when there's nothing new just silently
+              does nothing, which reads as "the updater is broken". */}
+          {updateStatus === 'idle' && updateCurrentVersion && updateCheckedAt > 0 && (
+            <div className="text-[8px] text-center text-slate-500 -mt-1 mb-1" data-testid="up-to-date-indicator">
+              Estás en la última versión (v{updateCurrentVersion}).
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-red-500/20 hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-[10px] font-semibold rounded transition-all"

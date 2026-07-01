@@ -30,8 +30,12 @@ curl -fsSL https://raw.githubusercontent.com/getodevel-source/PESOS/main/install
 ### 🍎 macOS
 
 1. Descargá el archivo `.zip` desde [GitHub Releases](https://github.com/getodevel-source/PESOS/releases/latest).
+   Hay builds separados para **Apple Silicon** (`-arm64-mac.zip`) e **Intel**
+   (`-x64-mac.zip`).
 2. Descomprimilo y mové `PESOS.app` a tu carpeta de `/Applications`.
 3. La primera vez: hacé **clic derecho → Abrir** para omitir el bloqueo de seguridad de Apple.
+
+> **Nota sobre code signing**: el build actual de macOS está **sin firmar**. Apple Gatekeeper mostrará un warning la primera vez ("no se puede abrir porque el desarrollador no se puede verificar"). Solución: clic derecho → Abrir (igual que arriba), o `xattr -dr com.apple.quarantine /Applications/PESOS.app`. Para firmarlo de verdad necesitás una cuenta de Apple Developer Program (US$99/año) y agregar `CSC_LINK` + `CSC_KEY_PASSWORD` como GitHub secrets + `mac.identity` en `package.json`. Este proyecto no tiene code signing configurado.
 
 ---
 
@@ -62,6 +66,8 @@ rm -rf ~/.local/share/icons/hicolor/256x256/apps/pesos.png
 
 1. Dirigite a **Configuración** > **Aplicaciones** > **Aplicaciones instaladas**.
 2. Buscá **PESOS** en la lista y hacé clic en **Desinstalar**.
+
+> **Nota sobre code signing**: el .exe está **sin firmar**. Microsoft SmartScreen va a mostrar "Windows protegió tu PC" la primera vez. Solución: clic en "Más información" → "Ejecutar de todas formas". Para firmarlo de verdad necesitás un certificado Authenticode (EV o regular, ~$200-400/año) y agregar `CSC_LINK` como GitHub secret + `win.certificateFile` en `package.json`. Este proyecto no tiene code signing configurado.
 
 ### 🍎 macOS
 
