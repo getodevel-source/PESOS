@@ -90,10 +90,7 @@
       ]
     },
     "mac": {
-      "target": [
-        "zip:arm64",
-        "zip:x64"
-      ],
+      "target": "zip",
       "icon": "public/logo.png"
     }
   }
