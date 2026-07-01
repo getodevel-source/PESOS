@@ -4,7 +4,7 @@ import {
   requestCheck,
   requestDownload,
   requestInstall
-} from '../../../../updater-bridge'
+} from '@/lib/updater-bridge'
 
 export const dynamic = 'force-dynamic'
 
