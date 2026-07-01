@@ -19,7 +19,7 @@ const {
   INSTALL_REQUEST_PATH,
   OPEN_DEB_REQUEST_PATH,
   OPEN_RELEASES_REQUEST_PATH
-} = bridge._paths
+} = bridge.getPaths()
 
 const RELEASES_URL = 'https://github.com/getodevel-source/PESOS/releases/latest'
 

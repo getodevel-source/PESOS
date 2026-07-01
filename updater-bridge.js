@@ -9,20 +9,33 @@
 // The Electron main process (updater.js) writes state to these files; the
 // Next.js route (src/app/api/update/route.ts) reads them. The renderer
 // (Dashboard.tsx) polls the route.
+//
+// Path resolution: paths are derived from `os.homedir()`, so they are
+// computed lazily inside `getPaths()` instead of frozen as top-level
+// constants. This matters for tests: the bridge is a CJS module cached
+// by Node, but each call to `getPaths()` re-evaluates `os.homedir()` so
+// a spy on `homedir` (or any future runtime change of the home dir)
+// actually takes effect.
 
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
-const STATE_DIR = path.join(os.homedir(), '.config', 'pesos')
-const STATE_PATH = path.join(STATE_DIR, 'update-state.json')
-const CHECK_REQUEST_PATH = path.join(STATE_DIR, 'update-check-request')
-const DOWNLOAD_REQUEST_PATH = path.join(STATE_DIR, 'update-download-request')
-const INSTALL_REQUEST_PATH = path.join(STATE_DIR, 'update-install-request')
-const OPEN_DEB_REQUEST_PATH = path.join(STATE_DIR, 'update-open-deb-request')
-const OPEN_RELEASES_REQUEST_PATH = path.join(STATE_DIR, 'update-open-releases-request')
+function getPaths() {
+  const STATE_DIR = path.join(os.homedir(), '.config', 'pesos')
+  return {
+    STATE_DIR,
+    STATE_PATH: path.join(STATE_DIR, 'update-state.json'),
+    CHECK_REQUEST_PATH: path.join(STATE_DIR, 'update-check-request'),
+    DOWNLOAD_REQUEST_PATH: path.join(STATE_DIR, 'update-download-request'),
+    INSTALL_REQUEST_PATH: path.join(STATE_DIR, 'update-install-request'),
+    OPEN_DEB_REQUEST_PATH: path.join(STATE_DIR, 'update-open-deb-request'),
+    OPEN_RELEASES_REQUEST_PATH: path.join(STATE_DIR, 'update-open-releases-request')
+  }
+}
 
 function ensureStateDir() {
+  const { STATE_DIR } = getPaths()
   if (!fs.existsSync(STATE_DIR)) {
     fs.mkdirSync(STATE_DIR, { recursive: true })
   }
@@ -39,6 +52,7 @@ function getCurrentVersion() {
 }
 
 function readState() {
+  const { STATE_PATH } = getPaths()
   try {
     if (fs.existsSync(STATE_PATH)) {
       return JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'))
@@ -70,6 +84,7 @@ function writeState(partial) {
     ...partial,
     timestamp: Date.now()
   }
+  const { STATE_PATH } = getPaths()
   try {
     fs.writeFileSync(STATE_PATH, JSON.stringify(payload, null, 2), 'utf8')
   } catch (err) {
@@ -94,23 +109,23 @@ function getState() {
 }
 
 function requestCheck() {
-  return writeRequestFile(CHECK_REQUEST_PATH)
+  return writeRequestFile(getPaths().CHECK_REQUEST_PATH)
 }
 
 function requestDownload() {
-  return writeRequestFile(DOWNLOAD_REQUEST_PATH)
+  return writeRequestFile(getPaths().DOWNLOAD_REQUEST_PATH)
 }
 
 function requestInstall() {
-  return writeRequestFile(INSTALL_REQUEST_PATH)
+  return writeRequestFile(getPaths().INSTALL_REQUEST_PATH)
 }
 
 function requestOpenDeb() {
-  return writeRequestFile(OPEN_DEB_REQUEST_PATH)
+  return writeRequestFile(getPaths().OPEN_DEB_REQUEST_PATH)
 }
 
 function requestOpenReleases() {
-  return writeRequestFile(OPEN_RELEASES_REQUEST_PATH)
+  return writeRequestFile(getPaths().OPEN_RELEASES_REQUEST_PATH)
 }
 
 module.exports = {
@@ -126,14 +141,7 @@ module.exports = {
   writeState,
   ensureStateDir,
   getCurrentVersion,
-  // Path constants (test-only)
-  _paths: {
-    STATE_DIR,
-    STATE_PATH,
-    CHECK_REQUEST_PATH,
-    DOWNLOAD_REQUEST_PATH,
-    INSTALL_REQUEST_PATH,
-    OPEN_DEB_REQUEST_PATH,
-    OPEN_RELEASES_REQUEST_PATH
-  }
+  // Resolved on every call so callers see the current `os.homedir()`.
+  // Use this in polling loops and tests that override `homedir`.
+  getPaths
 }

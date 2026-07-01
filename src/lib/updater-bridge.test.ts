@@ -3,26 +3,18 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
-import { createRequire } from 'node:module'
 
-// The bridge (updater-bridge.js) computes STATE_DIR from os.homedir() once
-// at module load time (it's a top-level `const`). To re-evaluate that const
-// against the spy'd homedir in each test we must clear BOTH vitest's module
-// cache (vi.resetModules) and Node's require.cache for the bridge path —
-// otherwise the frozen constant leaks the first test's tmpDir into every
-// later test, and the "auto-create" assertion becomes meaningless.
+// The bridge (updater-bridge.js) resolves its paths from `os.homedir()`
+// inside `getPaths()`, so the value is re-evaluated on every call rather
+// than frozen at module load. Combined with `vi.resetModules()` in
+// `beforeEach`, each test gets a fresh bridge instance bound to a
+// unique `tmpDir`. A spy on `os.homedir` is enough — no `createRequire`
+// or `require.cache` surgery required.
 
 let tmpDir: string
 
 beforeEach(() => {
   vi.resetModules()
-  // updater-bridge.js is a .js CJS module; clear Node's require cache so
-  // the top-level `const STATE_DIR` re-evaluates against the spy below.
-  // createRequire gives us a CommonJS require function from this ESM
-  // test module without triggering @typescript-eslint/no-require-imports.
-  const localReq = createRequire(import.meta.url)
-  const bridgePath = localReq.resolve('../../updater-bridge')
-  delete localReq.cache[bridgePath]
   tmpDir = path.join(os.tmpdir(), 'pesos-bridge-test-' + crypto.randomUUID())
   vi.spyOn(os, 'homedir').mockReturnValue(tmpDir)
 })
@@ -41,7 +33,7 @@ interface Bridge {
   requestCheck: () => boolean
   requestDownload: () => boolean
   requestInstall: () => boolean
-  _paths: {
+  getPaths: () => {
     STATE_DIR: string
     STATE_PATH: string
     CHECK_REQUEST_PATH: string
@@ -127,7 +119,7 @@ describe('updater-bridge — request sentinel files', () => {
 
     const ok = bridge.requestCheck()
     expect(ok).toBe(true)
-    expect(fs.readFileSync(bridge._paths.CHECK_REQUEST_PATH, 'utf8')).toBe('1')
+    expect(fs.readFileSync(bridge.getPaths().CHECK_REQUEST_PATH, 'utf8')).toBe('1')
   })
 
   it('requestDownload writes update-download-request with content "1"', async () => {
@@ -135,7 +127,7 @@ describe('updater-bridge — request sentinel files', () => {
 
     const ok = bridge.requestDownload()
     expect(ok).toBe(true)
-    expect(fs.readFileSync(bridge._paths.DOWNLOAD_REQUEST_PATH, 'utf8')).toBe('1')
+    expect(fs.readFileSync(bridge.getPaths().DOWNLOAD_REQUEST_PATH, 'utf8')).toBe('1')
   })
 
   it('requestInstall writes update-install-request with content "1"', async () => {
@@ -143,7 +135,7 @@ describe('updater-bridge — request sentinel files', () => {
 
     const ok = bridge.requestInstall()
     expect(ok).toBe(true)
-    expect(fs.readFileSync(bridge._paths.INSTALL_REQUEST_PATH, 'utf8')).toBe('1')
+    expect(fs.readFileSync(bridge.getPaths().INSTALL_REQUEST_PATH, 'utf8')).toBe('1')
   })
 })
 
@@ -155,10 +147,10 @@ describe('updater-bridge — state dir lifecycle', () => {
     // STATE_DIR is path.join(homedir(), '.config', 'pesos'); with the
     // beforeEach cache bust, it reflects the current spy and the
     // directory should not exist yet — making the test meaningful.
-    expect(fs.existsSync(bridge._paths.STATE_DIR)).toBe(false)
+    expect(fs.existsSync(bridge.getPaths().STATE_DIR)).toBe(false)
 
     bridge.requestCheck()
 
-    expect(fs.existsSync(bridge._paths.STATE_DIR)).toBe(true)
+    expect(fs.existsSync(bridge.getPaths().STATE_DIR)).toBe(true)
   })
 })
