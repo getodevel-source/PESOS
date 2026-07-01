@@ -601,6 +601,15 @@ db.exec(`
     FOREIGN KEY(user_id) REFERENCES profiles(id),
     FOREIGN KEY(achievement_id) REFERENCES achievements(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS inputs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    payload TEXT,
+    processed BOOLEAN DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES profiles(id) ON DELETE CASCADE
+  );
 `)
 
 // Seed user profile and stats if not present
