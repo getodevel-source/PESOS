@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Clean reinstall of Pesos v1.0.9 via AppImage (Arch/CachyOS-friendly).
+# For ongoing updates, prefer `scripts/update-appimage.sh` (preserves user data).
 #
 # What it does:
 #   1. Kills any running pesos/electron process
