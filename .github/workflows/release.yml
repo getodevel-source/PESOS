@@ -7,7 +7,18 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Matrix: Linux (AppImage + DEB), macOS (zip), Windows (NSIS .exe).
+    # electron-builder is OS-aware — the `npm run build:electron`
+    # command reads the runner OS and produces the right artifact
+    # without platform flags. Each job publishes to the same
+    # GitHub Release, so a single tag produces installers for all
+    # three platforms.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: write
 
@@ -30,7 +41,9 @@ jobs:
         # but not the other.
         run: bash scripts/check-mock-schema-sync.sh
 
-      - name: Build Next.js & Electron (AppImage / DEB)
+      - name: Build Next.js & Electron (${{ matrix.os }})
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # electron-builder picks the artifact type from the runner OS:
+        # Linux -> AppImage + DEB, macOS -> zip, Windows -> NSIS .exe
         run: npm run build:electron -- --publish always
