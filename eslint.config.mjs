@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     // dist/ produces duplicate errors against already-compiled code and
     // slows the lint pass considerably. Mirrors the scope used by vitest.
     "dist/**",
+    // Exclude the vitest coverage report (auto-generated HTML/JS under
+    // ./coverage/). Linting it produces spurious warnings from the
+    // bundled navigation script.
+    "coverage/**",
   ]),
   // The Electron entrypoints (electron.js, updater.js, updater-bridge.js,
   // scripts/bot-daemon.js) are CommonJS Node scripts, not TypeScript
