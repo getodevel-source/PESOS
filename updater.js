@@ -17,8 +17,11 @@ const {
   CHECK_REQUEST_PATH,
   DOWNLOAD_REQUEST_PATH,
   INSTALL_REQUEST_PATH,
-  OPEN_DEB_REQUEST_PATH
+  OPEN_DEB_REQUEST_PATH,
+  OPEN_RELEASES_REQUEST_PATH
 } = bridge._paths
+
+const RELEASES_URL = 'https://github.com/getodevel-source/PESOS/releases/latest'
 
 // Locate the .deb that electron-updater just downloaded. The library
 // stores it at <cache>/<appName>/pending/<filename>, but exposes no public
@@ -38,6 +41,22 @@ function findPendingDebPath() {
   }
 }
 
+// Detect how the app is installed. The `electron-updater` class
+// selection reads `process.resourcesPath/package-type`, but for AppImage
+// builds that file is absent / unreliable (the AppImage runtime sets
+// `process.env.APPIMAGE` instead). When the class is mis-detected the
+// install path uses the wrong mechanism (e.g. tries `dpkg -i` on a
+// CachyOS install where dpkg doesn't exist) and the user gets stuck
+// with no recovery. We surface the install method in the state so the
+// UI can offer the right fallback.
+function detectInstallMethod() {
+  if (process.env.APPIMAGE) return 'appimage'
+  // /opt/pesos is the FHS path electron-builder's DEB target uses; see
+  // package.json:30-50. Fall back to inspecting the install dir.
+  if (process.execPath && process.execPath.startsWith('/opt/pesos/')) return 'deb'
+  return 'unknown'
+}
+
 let _checkInFlight = false
 let _downloadInFlight = false
 
@@ -52,7 +71,10 @@ function setupAutoUpdater({ checkOnStart = true, initialCheckDelayMs = 5000 } = 
   autoUpdater.autoInstallOnAppQuit = true
 
   // Initial state
-  bridge.writeState({ status: 'idle' })
+  bridge.writeState({
+    status: 'idle',
+    installMethod: detectInstallMethod()
+  })
 
   // ─── electron-updater events ─────────────────────────────────────────────
 
@@ -199,6 +221,35 @@ function setupAutoUpdater({ checkOnStart = true, initialCheckDelayMs = 5000 } = 
         }
       } catch (err) {
         console.error('updater: failed to handle open-deb request:', err)
+        bridge.writeState({
+          status: 'error',
+          error: (err && err.message) ? err.message : String(err)
+        })
+      }
+    }
+
+    // 5) Open releases page request (fallback for AppImage installs where
+    // the in-place replace failed). Opens the GitHub Releases page so
+    // the user can download the new AppImage manually and replace the
+    // current one. This is the AppImage equivalent of the .deb fallback.
+    if (fs.existsSync(OPEN_RELEASES_REQUEST_PATH)) {
+      try {
+        fs.unlinkSync(OPEN_RELEASES_REQUEST_PATH)
+        shell.openExternal(RELEASES_URL).then((errMsg) => {
+          if (errMsg) {
+            bridge.writeState({
+              status: 'error',
+              error: `No se pudo abrir el browser: ${errMsg}. Descargá la nueva versión desde ${RELEASES_URL}`
+            })
+          }
+        }).catch((err) => {
+          bridge.writeState({
+            status: 'error',
+            error: `Error abriendo el browser: ${err && err.message ? err.message : String(err)}`
+          })
+        })
+      } catch (err) {
+        console.error('updater: failed to handle open-releases request:', err)
         bridge.writeState({
           status: 'error',
           error: (err && err.message) ? err.message : String(err)

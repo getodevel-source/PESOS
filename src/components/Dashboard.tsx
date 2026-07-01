@@ -82,6 +82,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const [updateError, setUpdateError] = useState<string | null>(null)
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updatePendingPath, setUpdatePendingPath] = useState<string | null>(null)
+  const [updateInstallMethod, setUpdateInstallMethod] = useState<'appimage' | 'deb' | 'unknown'>('unknown')
 
   const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
@@ -109,6 +110,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         if (data.pendingPath === null || typeof data.pendingPath === 'string') {
           setUpdatePendingPath(data.pendingPath ?? null)
         }
+        if (data.installMethod === 'appimage' || data.installMethod === 'deb' || data.installMethod === 'unknown') {
+          setUpdateInstallMethod(data.installMethod)
+        }
       } catch (err) {
         console.error('Failed to poll updater state:', err)
       }
@@ -118,7 +122,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
-  const sendUpdateAction = async (action: 'check' | 'download' | 'install' | 'openDeb') => {
+  const sendUpdateAction = async (action: 'check' | 'download' | 'install' | 'openDeb' | 'openReleases') => {
     setUpdateBusy(true)
     setUpdateError(null)
     try {
@@ -146,6 +150,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
   const handleStartDownload = () => sendUpdateAction('download')
   const handleInstall = () => sendUpdateAction('install')
   const handleOpenDeb = () => sendUpdateAction('openDeb')
+  const handleOpenReleases = () => sendUpdateAction('openReleases')
 
   // Notification states and refs
   const notifiedTasksRef = useRef<Set<string>>(new Set())
@@ -615,7 +620,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
               <p className="text-[9px] text-slate-400 leading-snug">
                 {updateError || 'No se pudo verificar la actualización.'}
               </p>
-              {updatePendingPath && (
+              {updatePendingPath && updateInstallMethod === 'deb' && (
                 <button
                   type="button"
                   onClick={handleOpenDeb}
@@ -625,6 +630,17 @@ export default function Dashboard({ initialUser }: DashboardProps) {
                 >
                   <Download className="h-3 w-3 shrink-0" />
                   Abrir el .deb manualmente
+                </button>
+              )}
+              {updateInstallMethod === 'appimage' && (
+                <button
+                  type="button"
+                  onClick={handleOpenReleases}
+                  disabled={updateBusy}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 bg-panel border border-indigo-500/30 hover:border-indigo-500/50 hover:bg-indigo-500/10 text-indigo-300 hover:text-indigo-200 text-[9px] font-bold rounded transition-all disabled:opacity-50"
+                >
+                  <Download className="h-3 w-3 shrink-0" />
+                  Descargar nuevo AppImage
                 </button>
               )}
               <button

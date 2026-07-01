@@ -8,17 +8,19 @@ vi.mock('@/lib/updater-bridge', () => ({
   requestCheck: vi.fn(),
   requestDownload: vi.fn(),
   requestInstall: vi.fn(),
-  requestOpenDeb: vi.fn()
+  requestOpenDeb: vi.fn(),
+  requestOpenReleases: vi.fn()
 }))
 
 import { GET, POST } from './route'
-import { getState, requestCheck, requestDownload, requestInstall, requestOpenDeb } from '@/lib/updater-bridge'
+import { getState, requestCheck, requestDownload, requestInstall, requestOpenDeb, requestOpenReleases } from '@/lib/updater-bridge'
 
 const mockedGetState = vi.mocked(getState)
 const mockedRequestCheck = vi.mocked(requestCheck)
 const mockedRequestDownload = vi.mocked(requestDownload)
 const mockedRequestInstall = vi.mocked(requestInstall)
 const mockedRequestOpenDeb = vi.mocked(requestOpenDeb)
+const mockedRequestOpenReleases = vi.mocked(requestOpenReleases)
 
 function makeJsonRequest(body: unknown): Request {
   return new Request('http://localhost/api/update', {
@@ -180,7 +182,8 @@ describe('Update route — POST', () => {
       releaseNotes: null,
       error: null,
       timestamp: Date.now(),
-      pendingPath: null
+      pendingPath: null,
+      installMethod: 'deb'
     })
 
     const res = await POST(makeJsonRequest({ action: 'openDeb' }) as unknown as import('next/server').NextRequest)
@@ -188,6 +191,20 @@ describe('Update route — POST', () => {
     expect(mockedRequestOpenDeb).not.toHaveBeenCalled()
     const body = await res.json()
     expect(body.error).toContain('No hay un .deb descargado')
+  })
+
+  it('routes action=openReleases to requestOpenReleases() (AppImage fallback)', async () => {
+    // The renderer asks to open the GitHub Releases page in the browser
+    // when the in-place AppImage replace failed. The route forwards to
+    // the bridge; the main process then calls shell.openExternal.
+    mockedRequestOpenReleases.mockReturnValue(true)
+
+    const res = await POST(makeJsonRequest({ action: 'openReleases' }) as unknown as import('next/server').NextRequest)
+    expect(res.status).toBe(200)
+    expect(mockedRequestOpenReleases).toHaveBeenCalledTimes(1)
+    const body = await res.json()
+    expect(body.action).toBe('openReleases')
+    expect(body.message).toContain('releases')
   })
 
   it('rejects unknown actions with 400', async () => {

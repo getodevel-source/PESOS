@@ -17,4 +17,4 @@
 //
 // Where the merge fix lives: in `updater-bridge.js` `writeState`, NOT
 // here. This file is a re-export only.
-export { getState, requestCheck, requestDownload, requestInstall, requestOpenDeb } from '../../updater-bridge'
+export { getState, requestCheck, requestDownload, requestInstall, requestOpenDeb, requestOpenReleases } from '../../updater-bridge'

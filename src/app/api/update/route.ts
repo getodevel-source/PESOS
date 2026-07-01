@@ -4,7 +4,8 @@ import {
   requestCheck,
   requestDownload,
   requestInstall,
-  requestOpenDeb
+  requestOpenDeb,
+  requestOpenReleases
 } from '@/lib/updater-bridge'
 
 export const dynamic = 'force-dynamic'
@@ -58,9 +59,17 @@ export async function POST(request: NextRequest) {
       const ok = requestOpenDeb()
       return NextResponse.json({ ok, action, message: `Abriendo ${state.pendingPath} con el manejador del sistema.` })
     }
+    if (action === 'openReleases') {
+      // Fallback for AppImage installs where the in-place replace
+      // failed. Opens the GitHub Releases page so the user can download
+      // the new AppImage manually and replace the current one. This is
+      // the AppImage equivalent of the .deb fallback.
+      const ok = requestOpenReleases()
+      return NextResponse.json({ ok, action, message: 'Abriendo la página de releases en el browser.' })
+    }
 
     return NextResponse.json(
-      { error: `Acción desconocida: ${String(action)}. Usar 'check', 'download', 'install' o 'openDeb'.` },
+      { error: `Acción desconocida: ${String(action)}. Usar 'check', 'download', 'install', 'openDeb' u 'openReleases'.` },
       { status: 400 }
     )
   } catch (err: unknown) {

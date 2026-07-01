@@ -107,7 +107,8 @@ describe('updater-bridge — readState / getState defaults', () => {
       releaseNotes: null,
       error: null,
       timestamp: 0,
-      pendingPath: null
+      pendingPath: null,
+      installMethod: 'unknown'
     })
   })
 
