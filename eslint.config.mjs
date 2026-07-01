@@ -28,6 +28,27 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-var-requires": "off",
     },
   },
+  // Allow `_`-prefixed identifiers to be unused. This is the standard TS
+  // pattern for "I know this is unused on purpose" — used for catch params
+  // and for object-destructured props we accept but don't read. The
+  // eslint-config-next/typescript preset enables no-unused-vars with
+  // default options; this override takes precedence over the spread.
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          args: "all",
+          argsIgnorePattern: "^_",
+          caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

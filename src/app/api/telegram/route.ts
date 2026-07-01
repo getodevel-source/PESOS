@@ -723,7 +723,7 @@ CONFIRM_TX: {"amount": <monto>, "currency": "<USD o ARS>", "description": "<desc
                 // Strip CONFIRM_TX block for the user response
                 const cleanReply = reply.replace(/CONFIRM_TX:\s*\{[\s\S]*?\}/g, '').trim()
                 await sendTelegramMessage(chat_id, cleanReply)
-              } catch (err) {
+              } catch {
                 await sendTelegramMessage(chat_id, reply)
               }
             } else {

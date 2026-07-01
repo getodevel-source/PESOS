@@ -6,13 +6,11 @@
 // the Next.js route without pulling in `electron` at build time.
 
 const fs = require('fs')
-const { app } = require('electron')
 const { autoUpdater } = require('electron-updater')
 
 const bridge = require('./updater-bridge')
 
 const {
-  STATE_PATH,
   CHECK_REQUEST_PATH,
   DOWNLOAD_REQUEST_PATH,
   INSTALL_REQUEST_PATH

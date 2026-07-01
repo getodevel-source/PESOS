@@ -338,17 +338,11 @@ export default function Dashboard({ initialUser }: DashboardProps) {
     window.location.reload()
   }
 
-  // Filter tasks to show today's tasks vs upcoming reminders
+  // Filter tasks to show today's tasks
   const todayTasks = tasks.filter((t) => {
     if (!t.due_date) return true
     const taskDate = new Date(t.due_date).toLocaleDateString('sv-SE')
     return taskDate <= todayStr
-  })
-
-  const upcomingReminders = tasks.filter((t) => {
-    if (!t.due_date) return false
-    const taskDate = new Date(t.due_date).toLocaleDateString('sv-SE')
-    return taskDate > todayStr && t.status === 'todo'
   })
 
   // Close Day Stats

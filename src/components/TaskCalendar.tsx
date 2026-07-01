@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Circle, CheckCircle2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare } from 'lucide-react'
 import { Task } from './TaskList'
 
 interface TaskCalendarProps {
@@ -9,7 +9,7 @@ interface TaskCalendarProps {
   onRefresh: () => void
 }
 
-export default function TaskCalendar({ tasks, onRefresh }: TaskCalendarProps) {
+export default function TaskCalendar({ tasks, onRefresh: _onRefresh }: TaskCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(
     new Date().toLocaleDateString('sv-SE')

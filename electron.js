@@ -136,7 +136,7 @@ function createWindow() {
       startTelegramPoll()
     }, 3000)
   } else {
-    mainWindow.loadURL(startUrl).catch((err) => {
+    mainWindow.loadURL(startUrl).catch(() => {
       console.log('Next.js dev server not running yet? Retrying in 3s...')
       setTimeout(() => {
         mainWindow.loadURL(startUrl)

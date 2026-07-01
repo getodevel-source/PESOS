@@ -448,9 +448,6 @@ export interface MockQueryResult<T> {
   error: MockPostgrestError | null
 }
 
-type ArrayResult<Row> = MockQueryResult<Row[] | null>
-type SingleResult<Row> = MockQueryResult<Row | null>
-
 // A query chain that ends in either a single-row result (`.single()` /
 // `.maybeSingle()`) or a list result (everything else). The result type is
 // tracked through a generic so `setTasks(tasksData || [])` keeps its `Task[]`
