@@ -146,9 +146,9 @@ function JournalReflectionEditor({
               key={opt.label}
               type="button"
               onClick={() => setSelectedMood(opt.emoji)}
-              className={`flex-1 py-1.5 rounded-lg border text-base transition-all duration-200 ${
+              className={`flex-1 py-1.5 rounded-lg border text-base btn-tactile transition-all duration-200 ${
                 selectedMood === opt.emoji
-                  ? 'bg-indigo-500/20 border-indigo-500 text-white scale-105 shadow-md shadow-indigo-500/10'
+                  ? 'bg-indigo-500/25 border-indigo-500/80 text-white scale-105 shadow-[0_0_12px_rgba(99,102,241,0.5)] ring-1 ring-indigo-500/45'
                   : 'bg-slate-900/40 border-white/[0.05] text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
               }`}
               title={opt.label}
@@ -172,9 +172,9 @@ function JournalReflectionEditor({
                 key={tag}
                 type="button"
                 onClick={() => handleTagToggle(tag)}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
+                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold btn-tactile transition-all duration-200 ${
                   isSelected
-                    ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30'
+                    ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-[0_0_8px_rgba(99,102,241,0.3)]'
                     : 'bg-slate-900/40 text-slate-400 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-300'
                 }`}
               >
@@ -209,7 +209,7 @@ function JournalReflectionEditor({
           type="button"
           onClick={handleSave}
           disabled={loading || !content.trim()}
-          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-indigo-400/20 shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 transition-all"
+          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-indigo-400/20 shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 btn-tactile transition-all"
         >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           Guardar reflexión
@@ -232,7 +232,7 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
   const pastEntries = journalEntries.filter((e) => e.entry_date !== todayStr)
 
   return (
-    <div className="glass-panel glass-panel-hover rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
+    <div className="glass-premium rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
       <div className="space-y-4">
         {/* The `key` remounts the editor whenever today's entry identity
             changes, so the form's state is reset from the latest entry

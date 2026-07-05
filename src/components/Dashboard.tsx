@@ -438,9 +438,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         <nav className="flex-1 px-3 py-4 space-y-1">
           <button
             onClick={() => setSidebarTab('overview')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'overview'
-                ? 'bg-task-purple/10 text-task-purple border-task-purple/20 shadow-sm shadow-task-purple/5'
+                ? 'bg-task-purple/10 text-task-purple border-task-purple/30 glow-task'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -449,9 +449,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           </button>
           <button
             onClick={() => setSidebarTab('tasks')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'tasks'
-                ? 'bg-task-purple/10 text-task-purple border-task-purple/20 shadow-sm shadow-task-purple/5'
+                ? 'bg-task-purple/10 text-task-purple border-task-purple/30 glow-task'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -460,9 +460,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           </button>
           <button
             onClick={() => setSidebarTab('habits')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'habits'
-                ? 'bg-habit-green/10 text-habit-green border-habit-green/20 shadow-sm shadow-habit-green/5'
+                ? 'bg-habit-green/10 text-habit-green border-habit-green/30 glow-habit'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -471,9 +471,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           </button>
           <button
             onClick={() => setSidebarTab('journal')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'journal'
-                ? 'bg-task-purple/10 text-task-purple border-task-purple/20 shadow-sm shadow-task-purple/5'
+                ? 'bg-task-purple/10 text-task-purple border-task-purple/30 glow-task'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -482,9 +482,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           </button>
           <button
             onClick={() => setSidebarTab('diet')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'diet'
-                ? 'bg-habit-green/10 text-habit-green border-habit-green/20 shadow-sm shadow-habit-green/5'
+                ? 'bg-habit-green/10 text-habit-green border-habit-green/30 glow-habit'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -493,9 +493,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           </button>
           <button
             onClick={() => setSidebarTab('finances')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'finances'
-                ? 'bg-finance-blue/10 text-finance-blue border-finance-blue/20 shadow-sm shadow-finance-blue/5'
+                ? 'bg-finance-blue/10 text-finance-blue border-finance-blue/30 glow-transaction'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -508,9 +508,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
           <button
             onClick={() => setSidebarTab('ai')}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border transition-all ${
+            className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-xs font-semibold border btn-tactile transition-all ${
               sidebarTab === 'ai'
-                ? 'bg-violet-500/10 text-violet-300 border-violet-500/20 shadow-sm shadow-violet-500/5'
+                ? 'bg-violet-500/10 text-violet-300 border-violet-500/30 glow-task'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
           >
@@ -534,7 +534,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
               <div className="space-y-1">
                 <div className="h-1.5 rounded-full bg-slate-900 overflow-hidden border border-white/[0.02]">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-700 ease-out"
+                    className="h-full rounded-full bg-gradient-to-r from-violet-600 to-indigo-500 transition-all duration-700 ease-out animate-progress-glow-pulse"
                     style={{ width: `${stats.xp % 100}%` }}
                   />
                 </div>
@@ -555,7 +555,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           <button
             onClick={checkAppUpdate}
             disabled={updateBusy || updateStatus === 'checking'}
-            className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-indigo-500/20 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-400 text-[10px] font-semibold rounded transition-all disabled:opacity-50"
+            className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-indigo-500/40 hover:bg-indigo-500/15 hover:shadow-[0_0_8px_rgba(99,102,241,0.3)] text-slate-400 hover:text-indigo-400 text-[10px] font-semibold rounded btn-tactile transition-all disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 shrink-0 ${updateStatus === 'checking' ? 'animate-spin' : ''}`} />
             {updateStatus === 'checking' ? 'Buscando...' : 'Buscar actualizaciones'}
@@ -571,7 +571,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           )}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-red-500/20 hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-[10px] font-semibold rounded transition-all"
+            className="w-full flex items-center gap-2 px-2 py-1.5 bg-panel border border-border-primary hover:border-red-500/20 hover:bg-red-500/10 text-slate-400 hover:text-red-400 text-[10px] font-semibold rounded btn-tactile transition-all"
           >
             <LogOut className="h-3.5 w-3.5 shrink-0" />
             Cerrar Sesión

@@ -12,6 +12,16 @@ import { createClient } from './supabase-client'
 describe('supabase-client mock — chainable thenable interface', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () => {
+        return {
+          ok: true,
+          json: async () => ({ data: null, error: null }),
+          text: async () => '',
+        }
+      })
+    )
   })
 
   it('a select().eq().order() chain resolves to { data: null, error: null }', async () => {
@@ -79,6 +89,66 @@ describe('supabase-client mock — chainable thenable interface', () => {
     expect(result).toHaveProperty('data')
     expect(result).toHaveProperty('error')
     expect(result.data).toBeNull()
+    expect(result.error).toBeNull()
+  })
+
+  it('serializes queries as MockQuery and POSTs to /api/sqlite', async () => {
+    const supabase = createClient()
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'h-1', title: 'Habit 1' }], error: null }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await supabase
+      .from('habits')
+      .select('id, title')
+      .eq('user_id', 'u-1')
+      .order('created_at', { ascending: false })
+      .maybeSingle()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url, init] = mockFetch.mock.calls[0]
+    expect(url).toBe('/api/sqlite')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({
+      table: 'habits',
+      action: 'select',
+      args: null,
+      filters: [{ type: 'eq', column: 'user_id', value: 'u-1' }],
+      order: { column: 'created_at', ascending: false },
+      single: false,
+      maybeSingle: true,
+    })
+    expect(result.data).toEqual([{ id: 'h-1', title: 'Habit 1' }])
+    expect(result.error).toBeNull()
+  })
+
+  it('serializes RPC calls and POSTs to /api/sqlite', async () => {
+    const supabase = createClient()
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: { success: true }, error: null }),
+    })
+    vi.stubGlobal('fetch', mockFetch)
+
+    const result = await supabase.rpc('my_custom_rpc', { arg1: 'val1' })
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const [url, init] = mockFetch.mock.calls[0]
+    expect(url).toBe('/api/sqlite')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({
+      action: 'select',
+      args: null,
+      filters: [],
+      order: null,
+      single: false,
+      maybeSingle: false,
+      rpcName: 'my_custom_rpc',
+      rpcArgs: { arg1: 'val1' },
+    })
+    expect(result.data).toEqual({ success: true })
     expect(result.error).toBeNull()
   })
 })

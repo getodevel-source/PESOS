@@ -128,7 +128,7 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
   const totalCount = habits.length
 
   return (
-    <div className="glass-panel glass-panel-hover rounded-2xl p-5 shadow-xl h-full flex flex-col">
+    <div className="glass-premium rounded-2xl p-5 shadow-xl h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.04]">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Award className="h-4 w-4 text-habit-green" />
@@ -167,7 +167,7 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
           <button
             type="submit"
             disabled={loading}
-            className="px-3 py-2 bg-habit-green hover:bg-habit-green/95 disabled:opacity-50 text-slate-950 text-[11px] font-bold rounded-md flex items-center gap-1 transition-colors cursor-pointer"
+            className="px-3 py-2 bg-habit-green hover:bg-habit-green/95 disabled:opacity-50 text-slate-955 text-[11px] font-bold rounded-md flex items-center gap-1 btn-tactile transition-colors cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5 stroke-[3px]" />
             Crear
@@ -187,8 +187,8 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
                 key={habit.id}
                 className={`py-2 px-3 rounded-lg border transition-all flex items-center justify-between gap-2.5 ${
                   completed
-                    ? 'bg-habit-green/10 border-habit-green/20'
-                    : 'bg-slate-950/20 border-white/5 hover:border-white/10'
+                    ? 'glass-premium border-habit-green/20 glow-habit'
+                    : 'glass-premium border-white/5 hover:border-habit-green/30'
                 }`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">

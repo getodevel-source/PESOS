@@ -143,7 +143,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
   const totalCount = tasks.length
 
   return (
-    <div className="glass-panel glass-panel-hover rounded-2xl p-5 shadow-xl h-full flex flex-col">
+    <div className="glass-premium rounded-2xl p-5 shadow-xl h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.04]">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Check className="h-4 w-4 text-task-purple stroke-[3px]" />
@@ -201,7 +201,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
           <button
             type="submit"
             disabled={loading}
-            className="px-3.5 py-2 bg-task-purple hover:bg-task-purple/95 disabled:opacity-50 text-white text-[11px] font-bold rounded-md flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+            className="px-3.5 py-2 bg-task-purple hover:bg-task-purple/95 disabled:opacity-50 text-white text-[11px] font-bold rounded-md flex items-center gap-1 btn-tactile transition-colors cursor-pointer shrink-0"
           >
             <Plus className="h-3.5 w-3.5 stroke-[3px]" />
             Añadir
@@ -219,10 +219,10 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
               key={task.id}
               className={`py-2 px-3 rounded-lg border transition-all flex items-center justify-between gap-2.5 ${
                 task.status === 'done'
-                  ? 'bg-slate-950/10 border-white/[0.02] opacity-55'
+                  ? 'glass-premium border-purple-500/20 opacity-60'
                   : task.status === 'ignored'
-                  ? 'bg-slate-950/10 border-white/[0.01] opacity-35 italic'
-                  : 'bg-slate-950/20 border-white/5 hover:border-white/10'
+                  ? 'glass-premium border-white/[0.02] opacity-35 italic'
+                  : 'glass-premium border-white/5 hover:border-task-purple/30'
               }`}
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -230,7 +230,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
                   onClick={() => handleToggleStatus(task.id, task.status)}
                   className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
                     task.status === 'done'
-                      ? 'bg-task-purple border-task-purple text-white scale-105 shadow-sm shadow-task-purple/20'
+                      ? 'bg-task-purple border-task-purple text-white scale-105 shadow-sm shadow-task-purple/20 animate-check-glow-purple'
                       : 'border-slate-700 hover:border-slate-500 text-transparent hover:scale-105'
                   }`}
                   aria-label={task.status === 'done' ? "Marcar tarea como pendiente" : "Marcar tarea como completada"}

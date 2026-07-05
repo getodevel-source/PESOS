@@ -3,6 +3,7 @@ import {
   type MockFilterClause,
   type MockOrderClause,
   type MockPostgrestError,
+  type MockQuery,
   type MockQueryResult,
   type MockSupabaseClient,
   type QueryAction,
@@ -98,16 +99,55 @@ class MockQueryChain<Row, Result = Row[] | null> {
   }
 
   // Thenable interface to await the query chain directly.
-  // Pure mock: resolves to { data: null, error: null }.
+  // Sends the serialized query to /api/sqlite.
   then<TResult1 = MockQueryResult<Result>, TResult2 = never>(
     onfulfilled?: ((value: MockQueryResult<Result>) => TResult1 | PromiseLike<TResult1>) | null,
     _onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
   ): PromiseLike<TResult1 | TResult2> {
     return (async () => {
-      const payload: MockQueryResult<Result> = { data: null as Result, error: null }
-      return onfulfilled
-        ? await Promise.resolve(onfulfilled(payload))
-        : (payload as unknown as TResult1)
+      const payload: MockQuery = {
+        table: this.table,
+        action: this.action,
+        args: this.args,
+        filters: this.filters,
+        order: this.orderBy,
+        single: this.singleRow,
+        maybeSingle: this.maybeSingleRow,
+      }
+
+      try {
+        const response = await fetch('/api/sqlite', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+          const errText = await response.text()
+          const result: MockQueryResult<Result> = {
+            data: null as Result,
+            error: {
+              message: errText || `HTTP error ${response.status}`,
+              code: `HTTP_${response.status}`,
+            },
+          }
+          return onfulfilled ? await Promise.resolve(onfulfilled(result)) : (result as unknown as TResult1)
+        }
+
+        const result = (await response.json()) as MockQueryResult<Result>
+        return onfulfilled ? await Promise.resolve(onfulfilled(result)) : (result as unknown as TResult1)
+      } catch (err: unknown) {
+        const result: MockQueryResult<Result> = {
+          data: null as Result,
+          error: {
+            message: err instanceof Error ? err.message : String(err),
+            code: 'FETCH_ERROR',
+          },
+        }
+        return onfulfilled ? await Promise.resolve(onfulfilled(result)) : (result as unknown as TResult1)
+      }
     })()
   }
 }
@@ -140,9 +180,48 @@ class MockBrowserClient implements MockSupabaseClient<MockDatabase> {
     return new MockQueryChain<MockDatabase['public']['Tables'][TableName]['Row']>(table)
   }
 
-  rpc(_name: string, _args?: Record<string, unknown>): Promise<MockQueryResult<unknown>> {
-    // Pure mock: resolve to { data: null, error: null }.
-    return Promise.resolve({ data: null, error: null })
+  async rpc(name: string, args?: Record<string, unknown>): Promise<MockQueryResult<unknown>> {
+    const payload: MockQuery = {
+      action: 'select',
+      args: null,
+      filters: [],
+      order: null,
+      single: false,
+      maybeSingle: false,
+      rpcName: name,
+      rpcArgs: args || null,
+    }
+
+    try {
+      const response = await fetch('/api/sqlite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const errText = await response.text()
+        return {
+          data: null,
+          error: {
+            message: errText || `HTTP error ${response.status}`,
+            code: `HTTP_${response.status}`,
+          },
+        }
+      }
+
+      return (await response.json()) as MockQueryResult<unknown>
+    } catch (err: unknown) {
+      return {
+        data: null,
+        error: {
+          message: err instanceof Error ? err.message : String(err),
+          code: 'FETCH_ERROR',
+        },
+      }
+    }
   }
 }
 

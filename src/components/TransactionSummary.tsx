@@ -356,7 +356,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
   })()
 
   return (
-    <div className="glass-panel glass-panel-hover rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
+    <div className="glass-premium rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.04]">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -367,7 +367,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
         </div>
 
         {/* ── Monthly Budget Panel ─────────────────────────────────── */}
-        <div className="mb-4 rounded-xl border border-white/[0.06] bg-slate-950/40 overflow-hidden">
+        <div className="mb-4 rounded-xl border border-white/[0.06] glass-premium overflow-hidden">
           <button
             type="button"
             onClick={() => setIsBudgetOpen((v) => !v)}
@@ -392,16 +392,16 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
               {budgetLimit > 0 ? (
                 <>
                   {/* Progress Bar */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <div className="flex justify-between items-baseline">
                       <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Consumido este mes</span>
                       <span className={`text-[11px] font-bold font-mono ${budgetTextColor}`}>
                         {budgetPct.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-800/60 overflow-hidden relative">
+                    <div className="h-2 rounded-full bg-slate-850 overflow-hidden relative border border-white/[0.02]">
                       <div
-                        className={`h-full rounded-full bg-gradient-to-r ${budgetBarColor} transition-all duration-700 ease-out relative`}
+                        className={`h-full rounded-full bg-gradient-to-r ${budgetBarColor} transition-all duration-700 ease-out relative ${budgetStatus === 'critical' ? 'shadow-[0_0_8px_rgba(239,68,68,0.5)]' : budgetStatus === 'warning' ? 'shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'shadow-[0_0_8px_rgba(16,185,129,0.5)]'}`}
                         style={{ width: `${budgetPct}%` }}
                       >
                         {budgetPct > 10 && (
@@ -410,13 +410,16 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
                       </div>
                     </div>
                     {budgetOverflow && (
-                      <p className="text-[9px] text-rose-400 font-semibold flex items-center gap-1">
-                        <AlertTriangle className="h-2.5 w-2.5" />
-                        ¡Superaste el límite por ${toARSDisplay(monthlyExpense - budgetLimit)}!
-                      </p>
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-rose-500/10 border border-rose-500/20 text-[9px] text-rose-455 font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(239,68,68,0.25)]">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span>¡Superaste el límite por ${toARSDisplay(monthlyExpense - budgetLimit)}!</span>
+                      </div>
                     )}
                     {!budgetOverflow && budgetStatus === 'warning' && (
-                      <p className="text-[9px] text-amber-400 font-semibold">⚠ Más del 75% del presupuesto consumido</p>
+                      <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-400 font-bold uppercase tracking-wider shadow-[0_0_10px_rgba(245,158,11,0.25)]">
+                        <AlertTriangle className="h-3 w-3 shrink-0" />
+                        <span>Más del 75% del presupuesto consumido</span>
+                      </div>
                     )}
                   </div>
 
@@ -525,21 +528,21 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
 
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="bg-slate-950/40 p-2.5 rounded-lg border border-white/5 text-center flex flex-col justify-between">
+          <div className="glass-premium p-2.5 rounded-lg border border-white/5 hover:border-habit-green/30 text-center flex flex-col justify-between glow-habit">
             <p className="text-[9px] uppercase tracking-wider text-habit-green font-bold flex items-center justify-center gap-0.5">
               <ArrowUpRight className="h-2.5 w-2.5 stroke-[2.5px]" />
               Ingresos
             </p>
             <p className="text-xs font-bold text-slate-200 mt-1 font-mono">${toARSDisplay(totalIncome) || '0'}</p>
           </div>
-          <div className="bg-slate-950/40 p-2.5 rounded-lg border border-white/5 text-center flex flex-col justify-between">
+          <div className="glass-premium p-2.5 rounded-lg border border-white/5 hover:border-rose-500/30 text-center flex flex-col justify-between shadow-[0_0_12px_rgba(239,68,68,0.25)]">
             <p className="text-[9px] uppercase tracking-wider text-rose-455 font-bold flex items-center justify-center gap-0.5">
               <ArrowDownRight className="h-2.5 w-2.5 stroke-[2.5px]" />
               Gastos
             </p>
             <p className="text-xs font-bold text-slate-200 mt-1 font-mono">${toARSDisplay(totalExpense) || '0'}</p>
           </div>
-          <div className="bg-slate-950/40 p-2.5 rounded-lg border border-white/5 text-center flex flex-col justify-between">
+          <div className="glass-premium p-2.5 rounded-lg border border-white/5 hover:border-finance-blue/30 text-center flex flex-col justify-between glow-transaction">
             <p className="text-[9px] uppercase tracking-wider text-finance-blue font-bold">Balance</p>
             <p className={`text-xs font-bold mt-1 font-mono ${balance >= 0 ? 'text-habit-green' : 'text-rose-455'}`}>
               ${toARSDisplay(balance) || '0'}
@@ -669,7 +672,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
               <button
                 type="button"
                 onClick={() => setType('expense')}
-                className={`px-3 py-1 rounded text-[10px] font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded text-[10px] font-semibold btn-tactile transition-all cursor-pointer ${
                   type === 'expense'
                     ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -680,7 +683,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
               <button
                 type="button"
                 onClick={() => setType('income')}
-                className={`px-3 py-1 rounded text-[10px] font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1 rounded text-[10px] font-semibold btn-tactile transition-all cursor-pointer ${
                   type === 'income'
                     ? 'bg-emerald-500/10 text-habit-green border border-emerald-500/20 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200 border border-transparent'
@@ -692,7 +695,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
             <button
               type="submit"
               disabled={loading || (currency === 'USD' && mepLoading)}
-              className="px-3 py-1.5 bg-finance-blue hover:bg-finance-blue/95 disabled:opacity-50 text-slate-950 text-[11px] font-bold rounded-md flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-finance-blue hover:bg-finance-blue/95 disabled:opacity-50 text-slate-950 text-[11px] font-bold rounded-md flex items-center gap-1.5 btn-tactile transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5 stroke-[3px]" />
               Registrar

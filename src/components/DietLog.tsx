@@ -141,7 +141,7 @@ function DietLogForm({
   const waterPct = Math.min((water / GOALS.water) * 100, 100)
 
   return (
-    <div className="glass-panel glass-panel-hover rounded-2xl p-6 shadow-xl h-full flex flex-col justify-between space-y-6">
+    <div className="glass-premium rounded-2xl p-6 shadow-xl h-full flex flex-col justify-between space-y-6">
       <div className="space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/[0.04]">
@@ -197,9 +197,9 @@ function DietLogForm({
               </div>
             </div>
             
-            <div className="h-2 rounded-full bg-slate-800/40 overflow-hidden relative border border-white/[0.02]">
+            <div className="h-2 rounded-full bg-slate-850 overflow-hidden relative border border-white/[0.04]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-sky-500 to-blue-400 transition-all duration-500 ease-out"
+                className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.5)] transition-all duration-500 ease-out"
                 style={{ width: `${waterPct}%` }}
               />
             </div>
@@ -208,14 +208,14 @@ function DietLogForm({
               <button
                 type="button"
                 onClick={() => addWater(250)}
-                className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 transition-colors"
+                className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 btn-tactile transition-colors"
               >
                 <Plus className="h-2.5 w-2.5" /> 250ml
               </button>
               <button
                 type="button"
                 onClick={() => addWater(500)}
-                className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 transition-colors"
+                className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 btn-tactile transition-colors"
               >
                 <Plus className="h-2.5 w-2.5" /> 500ml
               </button>
@@ -279,8 +279,8 @@ function DietLogForm({
                 <span>Calorías diarias</span>
                 <span>{calPct.toFixed(0)}%</span>
               </div>
-              <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${calPct}%` }} />
+              <div className="h-1.5 bg-slate-850 rounded-full overflow-hidden border border-white/[0.02]">
+                <div className="h-full bg-gradient-to-r from-emerald-400 to-green-500 shadow-[0_0_6px_rgba(16,185,129,0.5)] transition-all duration-300" style={{ width: `${calPct}%` }} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 pt-1">
@@ -289,8 +289,8 @@ function DietLogForm({
                   <span>Proteína</span>
                   <span>{protPct.toFixed(0)}%</span>
                 </div>
-                <div className="h-0.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-400 transition-all duration-300" style={{ width: `${protPct}%` }} />
+                <div className="h-1 bg-slate-850 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-rose-400 to-red-500 transition-all duration-300" style={{ width: `${protPct}%` }} />
                 </div>
               </div>
               <div className="space-y-0.5">
@@ -298,8 +298,8 @@ function DietLogForm({
                   <span>Carbos</span>
                   <span>{carbPct.toFixed(0)}%</span>
                 </div>
-                <div className="h-0.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-yellow-400 transition-all duration-300" style={{ width: `${carbPct}%` }} />
+                <div className="h-1 bg-slate-850 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 transition-all duration-300" style={{ width: `${carbPct}%` }} />
                 </div>
               </div>
               <div className="space-y-0.5">
@@ -307,8 +307,8 @@ function DietLogForm({
                   <span>Grasas</span>
                   <span>{fatPct.toFixed(0)}%</span>
                 </div>
-                <div className="h-0.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-400 transition-all duration-300" style={{ width: `${fatPct}%` }} />
+                <div className="h-1 bg-slate-850 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-300" style={{ width: `${fatPct}%` }} />
                 </div>
               </div>
             </div>
@@ -326,7 +326,7 @@ function DietLogForm({
                 key={food.name}
                 type="button"
                 onClick={() => quickAddFood(food)}
-                className="p-2 text-left rounded-lg bg-slate-900/40 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-100 flex flex-col justify-between gap-1 transition-all group"
+                className="p-2 text-left rounded-lg bg-slate-900/40 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-100 flex flex-col justify-between gap-1 btn-tactile transition-all group"
               >
                 <span className="text-[10px] font-semibold text-slate-300 group-hover:text-slate-100 truncate w-full">
                   {food.name}
@@ -366,7 +366,7 @@ function DietLogForm({
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-emerald-400/20 shadow-lg shadow-emerald-600/10 flex items-center gap-1.5 transition-all"
+            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-emerald-400/20 shadow-lg shadow-emerald-600/10 flex items-center gap-1.5 btn-tactile transition-all"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Guardar dieta diaria

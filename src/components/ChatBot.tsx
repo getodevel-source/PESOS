@@ -374,7 +374,7 @@ export default function ChatBot() {
   const currentModels = PROVIDERS[provider].models
 
   return (
-    <div className="glass-panel glass-panel-hover rounded-2xl shadow-xl flex flex-col h-[calc(100vh-12rem)] max-h-[820px] min-h-[520px]">
+    <div className="glass-premium rounded-2xl shadow-xl flex flex-col h-[calc(100vh-12rem)] max-h-[820px] min-h-[520px]">
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04] shrink-0">
         <div className="flex items-center gap-3">
@@ -681,7 +681,7 @@ export default function ChatBot() {
             className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {msg.role === 'assistant' && (
-              <div className="h-6 w-6 rounded-md bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/15 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="h-6 w-6 rounded-md bg-gradient-to-br from-violet-500/20 to-indigo-600/20 border border-violet-500/15 flex items-center justify-center shrink-0 mt-0.5 animate-avatar-breathing">
                 <Bot className="h-3.5 w-3.5 text-violet-300" />
               </div>
             )}
@@ -689,8 +689,8 @@ export default function ChatBot() {
             <div
               className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-task-purple/20 border border-task-purple/25 text-slate-100 rounded-tr-sm'
-                  : 'bg-slate-900/60 border border-white/[0.04] text-slate-200 rounded-tl-sm'
+                  ? 'bg-task-purple/25 backdrop-blur-md border border-task-purple/35 text-slate-100 rounded-tr-sm shadow-[0_4px_12px_rgba(124,58,237,0.15)]'
+                  : 'bg-slate-900/45 backdrop-blur-md border border-white/[0.06] text-slate-200 rounded-tl-sm shadow-[0_4px_12px_rgba(255,255,255,0.02)]'
               }`}
             >
               {msg.content === '' && isStreaming ? (
@@ -735,7 +735,7 @@ export default function ChatBot() {
           <button
             onClick={handleSend}
             disabled={isStreaming || !input.trim()}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-task-purple hover:bg-task-purple/90 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all cursor-pointer shrink-0 shadow-lg shadow-task-purple/10"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-task-purple hover:bg-task-purple/90 disabled:opacity-40 disabled:cursor-not-allowed text-white btn-tactile transition-all cursor-pointer shrink-0 shadow-lg shadow-task-purple/10"
             aria-label="Enviar mensaje"
           >
             {isStreaming ? (

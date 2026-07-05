@@ -12,6 +12,17 @@
   --panel-dark: rgba(13, 17, 23, 0.7);
   --border-primary: rgba(255, 255, 255, 0.06);
   --font-berkeley: 'Berkeley Mono', var(--font-geist-mono), monospace;
+
+  /* Neon glow colors */
+  --color-glow-green: rgba(16, 185, 129, 0.4);
+  --color-glow-blue: rgba(59, 130, 246, 0.4);
+  --color-glow-purple: rgba(124, 58, 237, 0.4);
+  --bg-glass-fallback: rgb(13, 17, 23);
+
+  /* Glassmorphism custom variables */
+  --bg-glass-color: rgba(13, 17, 23, 0.45);
+  --glass-blur-radius: 12px;
+  --glass-border-color: rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
@@ -27,6 +38,12 @@
   
   --font-sans: var(--font-inter), sans-serif;
   --font-mono: var(--font-berkeley), monospace;
+
+  /* Glow colors mapping */
+  --color-glow-green: var(--color-glow-green);
+  --color-glow-blue: var(--color-glow-blue);
+  --color-glow-purple: var(--color-glow-purple);
+  --color-bg-glass-fallback: var(--bg-glass-fallback);
 }
 
 body {
@@ -71,6 +88,47 @@ body {
   box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
 }
 
+/* Premium Glassmorphic container with fallback support */
+.glass-premium {
+  background: var(--bg-glass-fallback);
+  border: 1px solid var(--glass-border-color);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+@supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
+  .glass-premium {
+    background: var(--bg-glass-color);
+    backdrop-filter: blur(var(--glass-blur-radius));
+    -webkit-backdrop-filter: blur(var(--glass-blur-radius));
+  }
+}
+
+.no-backdrop-blur .glass-premium {
+  background: var(--bg-glass-fallback) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Tactile interaction utility */
+.btn-tactile {
+  transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1), filter 0.15s ease;
+}
+
+.btn-tactile:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* Custom Status Glows utilities */
+.glow-habit {
+  box-shadow: 0 0 12px 1px var(--color-glow-green);
+}
+.glow-transaction {
+  box-shadow: 0 0 12px 1px var(--color-glow-blue);
+}
+.glow-task {
+  box-shadow: 0 0 12px 1px var(--color-glow-purple);
+}
+
 /* Micro-animations */
 @keyframes checkGlow {
   0% {
@@ -104,6 +162,56 @@ body {
   animation: taskComplete 0.3s ease-out forwards;
 }
 
+/* Custom Overhaul Animations */
+@keyframes avatar-breathing {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(59, 130, 246, 0.3), 0 0 0 1px rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(124, 58, 237, 0.6), 0 0 0 2px rgba(124, 58, 237, 0.4);
+    border-color: rgba(124, 58, 237, 0.7);
+  }
+}
+
+.animate-avatar-breathing {
+  animation: avatar-breathing 4s ease-in-out infinite;
+}
+
+@keyframes progress-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(59, 130, 246, 0.4));
+    opacity: 0.9;
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.8));
+    opacity: 1;
+  }
+}
+
+.animate-progress-glow-pulse {
+  animation: progress-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes check-glow {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.4);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 12px 6px rgba(124, 58, 237, 0.3);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0);
+  }
+}
+
+.animate-check-glow-purple {
+  animation: check-glow 0.4s ease-out forwards;
+}
+
 /* Hide Next.js dev indicators and portals (especially for Electron wrapper) */
 nextjs-portal,
 #nextjs-dev-indicator,
@@ -116,3 +224,4 @@ div[data-nextjs-toast-wrapper] {
   width: 0 !important;
   height: 0 !important;
 }
+
