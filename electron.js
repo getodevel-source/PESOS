@@ -12,7 +12,14 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 // Load local environment variables from writable user config directory on startup
 function loadEnv() {
-  const userEnvPath = path.join(os.homedir(), '.config', 'pesos', '.env.local')
+  let userEnvPath
+  if (process.platform === 'win32') {
+    userEnvPath = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'pesos', '.env.local')
+  } else if (process.platform === 'darwin') {
+    userEnvPath = path.join(os.homedir(), 'Library', 'Application Support', 'pesos', '.env.local')
+  } else {
+    userEnvPath = path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'pesos', '.env.local')
+  }
   const devEnvPath = path.join(__dirname, '.env.local')
   const envPath = fs.existsSync(userEnvPath) ? userEnvPath : devEnvPath
 
@@ -40,13 +47,17 @@ function startNextServer() {
     return
   }
 
-  // In production, start the packaged Next.js server
-  const nextBin = path.join(__dirname, 'node_modules', 'next', 'dist', 'bin', 'next')
-  nextProcess = spawn('node', [nextBin, 'start', '-H', '127.0.0.1', '-p', '3000'], {
-    cwd: __dirname,
-    // Force production mode to prevent Turbopack dev server from starting
-    // and attempting to write to the read-only AppImage filesystem
-    env: { ...process.env, NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1' }
+  // In production, start the standalone Next.js server (avoids writes to read-only squashfs)
+  const serverScript = path.join(__dirname, '.next', 'standalone', 'server.js')
+  nextProcess = spawn('node', [serverScript], {
+    cwd: path.join(__dirname, '.next', 'standalone'),
+    env: {
+      ...process.env,
+      NODE_ENV: 'production',
+      NEXT_TELEMETRY_DISABLED: '1',
+      PORT: '3000',
+      HOSTNAME: '127.0.0.1'
+    }
   })
 
   nextProcess.stdout.on('data', (data) => {
@@ -115,6 +126,18 @@ async function startTelegramPoll() {
   }
 }
 
+async function waitForNextServer(maxWaitMs = 30000, intervalMs = 500) {
+  const start = Date.now()
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const r = await fetch('http://127.0.0.1:3000/api/health')
+      if (r.ok) return true
+    } catch {}
+    await new Promise(res => setTimeout(res, intervalMs))
+  }
+  return false
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -130,14 +153,19 @@ function createWindow() {
   const startUrl = 'http://localhost:3000'
 
   if (!isDev) {
-    // Give Next.js a moment to boot
-    setTimeout(() => {
-      mainWindow.loadURL(startUrl).catch((err) => {
-        console.error('Failed to load local server URL:', err)
-      })
-      // Start polling after Next.js is booted
-      startTelegramPoll()
-    }, 3000)
+    waitForNextServer(30000).then(ready => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (ready) {
+          mainWindow.loadURL(startUrl).catch(err => {
+            console.error('Failed to load local server URL:', err)
+          })
+          startTelegramPoll()
+        } else {
+          console.error('Next.js server did not become ready in 30s')
+          mainWindow.loadURL(`data:text/html,<h1>PESOS failed to start</h1><p>The local server did not start in 30 seconds.</p>`)
+        }
+      }
+    })
   } else {
     mainWindow.loadURL(startUrl).catch(() => {
       console.log('Next.js dev server not running yet? Retrying in 3s...')
@@ -219,7 +247,9 @@ app.on('ready', () => {
   // Wait for Next.js to boot (createWindow has a 3s delay) then call the
   // handshake. The BrowserWindow's first load happens inside createWindow.
   if (!isDev) {
-    setTimeout(() => { attemptHandshake().catch(() => {}) }, 4000)
+    // attemptHandshake is now called after waitForNextServer inside createWindow
+    // But also call it from ready handler as a safety net
+    setTimeout(() => { attemptHandshake().catch(() => {}) }, 5000)
   }
 })
 

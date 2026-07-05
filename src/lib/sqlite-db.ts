@@ -505,6 +505,18 @@ const dbPath = path.join(dbDir, 'pesos.db')
 // Boot-Time Self-Healing & Corruption Check
 let isDbHealthy = false
 
+// Cleanup orphaned WAL shared-memory file (no matching -wal file = safe to remove)
+const walFile = dbPath + '-wal'
+const shmFile = dbPath + '-shm'
+if (fs.existsSync(shmFile) && !fs.existsSync(walFile)) {
+  try {
+    fs.unlinkSync(shmFile)
+    console.log('Boot: removed orphaned .db-shm file (no matching .db-wal)')
+  } catch (err) {
+    console.error('Boot: failed to remove orphaned .db-shm:', err)
+  }
+}
+
 if (fs.existsSync(dbPath)) {
   let tempDb: Database.Database | null = null
   try {
@@ -611,7 +623,7 @@ if (isDbHealthy && fs.existsSync(dbPath)) {
 }
 
 // Open the main connection
-export const db = new Database(dbPath)
+export const db = new Database(dbPath, { timeout: 5000 })
 
 // Configure connection options: WAL mode and busy timeout
 try {
