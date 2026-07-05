@@ -503,6 +503,19 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true })
 }
 const dbPath = path.join(dbDir, 'pesos.db')
+const dbBackupPath = path.join(dbDir, 'pesos.db.bak')
+
+// Proactive backup: Copy the existing database file to a backup file before opening it,
+// to ensure that if anything goes wrong during initialization or schema creation, 
+// the user's data can be restored from the backup.
+try {
+  if (fs.existsSync(dbPath)) {
+    fs.copyFileSync(dbPath, dbBackupPath)
+    console.log(`updater-backup: database backup created at ${dbBackupPath}`)
+  }
+} catch (err) {
+  console.error('updater-backup: failed to create database backup:', err)
+}
 
 export const db = new Database(dbPath)
 
