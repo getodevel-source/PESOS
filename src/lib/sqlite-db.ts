@@ -593,7 +593,13 @@ if (isDbHealthy && fs.existsSync(dbPath)) {
       const oldBak = path.join(dbDir, `pesos.db.bak.${i}`)
       const newBak = path.join(dbDir, `pesos.db.bak.${i + 1}`)
       if (fs.existsSync(oldBak)) {
-        fs.renameSync(oldBak, newBak)
+        try {
+          fs.renameSync(oldBak, newBak)
+        } catch (renameErr: any) {
+          if (renameErr && renameErr.code !== 'ENOENT') {
+            throw renameErr
+          }
+        }
       }
     }
     // Copy current pesos.db to pesos.db.bak.0
