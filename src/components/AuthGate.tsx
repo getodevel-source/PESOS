@@ -6,47 +6,60 @@ import { useEffect, useState } from 'react'
 // triggers the handshake after `next start` boots, so the session cookie
 // is normally set before the BrowserWindow's first navigation. This client
 // component exists to recover the cookie in dev mode (when Electron isn't
-// the entry point) and to show a "loading" hint while the handshake is in
-// flight.
+// the entry point) and to show a loading hint while the handshake is in
+// flight. Retries with exponential backoff so a slow server startup doesn't
+// permanently block the UI.
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  // Read the cookie synchronously at init. When Electron already set the
-  // session, ready is true from the first render and we never run the
-  // handshake effect. This avoids the `set-state-in-effect` antipattern
-  // (calling setReady(true) inside the effect body just because a cookie
-  // was already on document).
   const [ready, setReady] = useState<boolean>(() => {
     if (typeof document === 'undefined') return false
     return document.cookie.includes('session=')
   })
 
   useEffect(() => {
-    // Cookie already present → no async handshake needed.
     if (ready) return
 
     let cancelled = false
 
-    async function ensureHandshake() {
+    async function ensureHandshake(attempt = 0) {
+      if (cancelled) return
       try {
         const res = await fetch('/api/auth/handshake', { method: 'POST' })
         if (!cancelled && res.ok) {
           setReady(true)
+          return
         }
       } catch {
-        // Network failure: leave ready=false so the user sees the loading
-        // hint and can retry by reloading the window.
+        // Network failure — retry below
+      }
+      // Retry up to 8 times with exponential backoff: 500 1000 2000 4000 …
+      if (!cancelled && attempt < 8) {
+        const delay = Math.min(500 * Math.pow(2, attempt), 8000)
+        await new Promise(r => setTimeout(r, delay))
+        ensureHandshake(attempt + 1)
       }
     }
 
     ensureHandshake()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [ready])
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-slate-400 text-xs">
-        Abriendo Pesos…
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#080b14',
+          color: 'rgba(0,255,136,0.7)',
+          fontFamily: 'system-ui, sans-serif',
+          fontSize: '12px',
+          letterSpacing: '3px',
+          textTransform: 'uppercase',
+        }}
+      >
+        Iniciando…
       </div>
     )
   }

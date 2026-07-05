@@ -43,6 +43,7 @@ loadEnv()
 
 // Use a non-standard port in production to avoid conflicts with npm run dev (port 3000)
 const PROD_PORT = '3847'
+const port = isDev ? '3000' : PROD_PORT
 
 function startNextServer() {
   if (isDev) {
@@ -58,7 +59,7 @@ function startNextServer() {
       ...process.env,
       NODE_ENV: 'production',
       NEXT_TELEMETRY_DISABLED: '1',
-      PORT: PROD_PORT,
+      PORT: port,
       HOSTNAME: '127.0.0.1'
     }
   })
@@ -110,7 +111,7 @@ async function startTelegramPoll() {
           offset = update.update_id + 1
 
           // Forward the Telegram update payload locally to Next.js API
-          fetch('http://localhost:3000/api/telegram', {
+          fetch(`http://localhost:${port}/api/telegram`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -133,7 +134,7 @@ async function waitForNextServer(maxWaitMs = 30000, intervalMs = 500) {
   const start = Date.now()
   while (Date.now() - start < maxWaitMs) {
     try {
-      const r = await fetch(`http://127.0.0.1:${PROD_PORT}/api/health`)
+      const r = await fetch(`http://127.0.0.1:${port}/api/health`)
       if (r.ok) return true
     } catch {}
     await new Promise(res => setTimeout(res, intervalMs))
@@ -153,7 +154,7 @@ function createWindow() {
     },
   })
 
-  const startUrl = `http://localhost:${PROD_PORT}`
+  const startUrl = `http://localhost:${port}`
 
   if (!isDev) {
     // Show the branded loading screen immediately — no more blank white page
@@ -239,7 +240,7 @@ function createTray() {
 async function attemptHandshake(retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      const r = await fetch(`http://127.0.0.1:${PROD_PORT}/api/auth/handshake`, { method: 'POST' })
+      const r = await fetch(`http://127.0.0.1:${port}/api/auth/handshake`, { method: 'POST' })
       if (r.ok) return
     } catch {
       // Next.js is not up yet — retry.
