@@ -2,11 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
-// Helper to load env vars from the user's config directory (~/.config/pesos/.env.local)
+import { getAppDir } from './paths'
+
+// Helper to load env vars from the user's config directory (.env.local)
 // This is critical because the AppImage/packaged app directories are read-only (EROFS).
 export function loadUserEnv() {
-  const configDir = path.join(os.homedir(), '.config', 'pesos')
-  const envPath = path.join(configDir, '.env.local')
+  const envPath = path.join(getAppDir(), '.env.local')
 
   if (fs.existsSync(envPath)) {
     try {

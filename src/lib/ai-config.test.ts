@@ -3,17 +3,21 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
-// Δ3: `getDefaultProvider()` must read ~/.config/pesos/.ai-config.json
-// and default to { provider: 'gemini' } when missing/unparseable.
-
 let tmpDir: string
+let mockAppDir: string
+
+vi.mock('./paths', () => {
+  return {
+    getAppDir: () => mockAppDir,
+  }
+})
 
 beforeEach(async () => {
   // Re-import the module under test for each scenario so the CONFIG_PATH
   // constant is computed against the new tmpDir.
   vi.resetModules()
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pesos-ai-config-'))
-  vi.spyOn(os, 'homedir').mockReturnValue(tmpDir)
+  mockAppDir = tmpDir
 })
 
 afterEach(() => {
@@ -24,9 +28,8 @@ afterEach(() => {
 })
 
 describe('ai-config getDefaultProvider (Δ3)', () => {
-  it('reads provider override from .ai-config.json', async () => {
-    const cfgPath = path.join(tmpDir, '.config', 'pesos', '.ai-config.json')
-    fs.mkdirSync(path.dirname(cfgPath), { recursive: true })
+  it('reads provider override from .ai-config.json in standard path', async () => {
+    const cfgPath = path.join(tmpDir, '.ai-config.json')
     fs.writeFileSync(cfgPath, JSON.stringify({ provider: 'opencode' }), 'utf8')
 
     const { getDefaultProvider } = await import('./ai-config')

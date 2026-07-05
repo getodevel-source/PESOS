@@ -18,8 +18,10 @@ export interface AIConfig {
 
 const DEFAULT: AIConfig = { provider: 'gemini' }
 
+import { getAppDir } from './paths'
+
 function configPath(): string {
-  return path.join(os.homedir(), '.config', 'pesos', '.ai-config.json')
+  return path.join(getAppDir(), '.ai-config.json')
 }
 
 export function getDefaultProvider(): AIConfig {

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
+import { getAppDir } from './paths'
 
 // ─── Shared types for the SQLite-backed Supabase mock ────────────────────────
 //
@@ -498,26 +499,127 @@ export const MOCK_USER_ID = '00000000-0000-0000-0000-000000000000'
 export const MOCK_USER_EMAIL = 'user@pesos.local'
 
 // Path to SQLite database file
-const dbDir = path.join(os.homedir(), '.config', 'pesos')
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true })
-}
+const dbDir = getAppDir()
 const dbPath = path.join(dbDir, 'pesos.db')
-const dbBackupPath = path.join(dbDir, 'pesos.db.bak')
 
-// Proactive backup: Copy the existing database file to a backup file before opening it,
-// to ensure that if anything goes wrong during initialization or schema creation, 
-// the user's data can be restored from the backup.
-try {
-  if (fs.existsSync(dbPath)) {
-    fs.copyFileSync(dbPath, dbBackupPath)
-    console.log(`updater-backup: database backup created at ${dbBackupPath}`)
+// Boot-Time Self-Healing & Corruption Check
+let isDbHealthy = false
+
+if (fs.existsSync(dbPath)) {
+  let tempDb: Database.Database | null = null
+  try {
+    tempDb = new Database(dbPath, { timeout: 2000 })
+    const checkResult = tempDb.pragma('integrity_check')
+    const ok = Array.isArray(checkResult) && checkResult[0] && (checkResult[0].integrity_check === 'ok' || checkResult[0] === 'ok')
+    if (ok) {
+      isDbHealthy = true
+    }
+  } catch (err) {
+    console.error('Boot check: database corruption detected or failed to open:', err)
+  } finally {
+    if (tempDb) {
+      try {
+        tempDb.close()
+      } catch {}
+    }
   }
-} catch (err) {
-  console.error('updater-backup: failed to create database backup:', err)
+
+  if (!isDbHealthy) {
+    // Quarantine the corrupt database
+    const timestamp = Date.now()
+    const corruptPath = path.join(dbDir, `pesos.db.corrupt.${timestamp}`)
+    try {
+      fs.renameSync(dbPath, corruptPath)
+      console.warn(`Boot check: quarantined corrupt database to ${corruptPath}`)
+    } catch (err) {
+      console.error('Boot check: failed to quarantine corrupt database:', err)
+    }
+
+    // Clean up WAL and SHM sidecar files
+    const walFile = dbPath + '-wal'
+    const shmFile = dbPath + '-shm'
+    if (fs.existsSync(walFile)) {
+      try { fs.unlinkSync(walFile) } catch {}
+    }
+    if (fs.existsSync(shmFile)) {
+      try { fs.unlinkSync(shmFile) } catch {}
+    }
+
+    // Attempt restoring from latest backup (0 to 4)
+    for (let i = 0; i <= 4; i++) {
+      const backupPath = path.join(dbDir, `pesos.db.bak.${i}`)
+      if (fs.existsSync(backupPath)) {
+        try {
+          fs.copyFileSync(backupPath, dbPath)
+          // Verify integrity of the restored backup
+          let verifyDb: Database.Database | null = null
+          let backupOk = false
+          try {
+            verifyDb = new Database(dbPath, { timeout: 2000 })
+            const result = verifyDb.pragma('integrity_check')
+            backupOk = Array.isArray(result) && result[0] && (result[0].integrity_check === 'ok' || result[0] === 'ok')
+          } catch {
+            backupOk = false
+          } finally {
+            if (verifyDb) {
+              try { verifyDb.close() } catch {}
+            }
+          }
+
+          if (backupOk) {
+            console.log(`Boot check: successfully restored database from healthy backup index ${i}`)
+            isDbHealthy = true
+            break
+          } else {
+            // Backup is corrupt, delete the copy and try next
+            try { fs.unlinkSync(dbPath) } catch {}
+          }
+        } catch (err) {
+          console.error(`Boot check: failed to restore backup index ${i}:`, err)
+        }
+      }
+    }
+  }
+} else {
+  // Database doesn't exist, will be created fresh
+  isDbHealthy = true
 }
 
+// Backup Rotation: Perform shift and backup if the database is healthy
+if (isDbHealthy && fs.existsSync(dbPath)) {
+  try {
+    // Shift backups: bak.3 -> bak.4, bak.2 -> bak.3, bak.1 -> bak.2, bak.0 -> bak.1
+    for (let i = 3; i >= 0; i--) {
+      const oldBak = path.join(dbDir, `pesos.db.bak.${i}`)
+      const newBak = path.join(dbDir, `pesos.db.bak.${i + 1}`)
+      if (fs.existsSync(oldBak)) {
+        fs.renameSync(oldBak, newBak)
+      }
+    }
+    // Copy current pesos.db to pesos.db.bak.0
+    fs.copyFileSync(dbPath, path.join(dbDir, 'pesos.db.bak.0'))
+    console.log('Backup: rotated backups and created fresh pesos.db.bak.0')
+  } catch (err) {
+    console.error('Backup: failed to rotate backups:', err)
+  }
+}
+
+// Open the main connection
 export const db = new Database(dbPath)
+
+// Configure connection options: WAL mode and busy timeout
+try {
+  db.pragma('journal_mode = WAL')
+  const journalMode = db.pragma('journal_mode')
+  const mode = Array.isArray(journalMode) ? journalMode[0]?.journal_mode : journalMode
+  if (mode !== 'wal') {
+    console.warn(`WAL Warning: active journal mode is ${mode}, expected wal`)
+  }
+
+  db.pragma('busy_timeout = 5000')
+} catch (err) {
+  console.error('Failed to configure SQLite pragmas:', err)
+}
 
 // Initialize schema
 db.exec(`
