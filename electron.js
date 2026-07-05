@@ -156,6 +156,12 @@ function createWindow() {
   const startUrl = `http://localhost:${PROD_PORT}`
 
   if (!isDev) {
+    // Show the branded loading screen immediately — no more blank white page
+    const loadingPage = path.join(__dirname, 'public', 'loading.html')
+    mainWindow.loadFile(loadingPage).catch(() => {
+      // Fallback if loadFile fails (e.g. path mismatch in AppImage)
+      mainWindow.loadURL(`data:text/html,<html style="background:#080b14"><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#00ff88;font-family:system-ui;letter-spacing:4px;font-size:13px;text-transform:uppercase">Iniciando PESOS...</p></body></html>`)
+    })
     waitForNextServer(30000).then(ready => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         if (ready) {
@@ -165,7 +171,7 @@ function createWindow() {
           startTelegramPoll()
         } else {
           console.error('Next.js server did not become ready in 30s')
-          mainWindow.loadURL(`data:text/html,<h1>PESOS failed to start</h1><p>The local server did not start in 30 seconds.</p>`)
+          mainWindow.loadURL(`data:text/html,<html style="background:#080b14"><body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;gap:16px"><p style="color:#ff4466;font-family:system-ui;font-size:16px;font-weight:700">Error al iniciar PESOS</p><p style="color:rgba(255,255,255,0.4);font-family:system-ui;font-size:13px">El servidor no respondió. Cerrá y volvé a abrir la aplicación.</p></body></html>`)
         }
       }
     })

@@ -1,217 +1,227 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pesos - Cargando</title>
-  <style>
-    :root {
-      --background: #020617;
-      --foreground: #f8fafc;
-      --card-bg: rgba(15, 23, 42, 0.6);
-      --card-border: rgba(255, 255, 255, 0.05);
-      --brand-indigo: #6366f1;
-      --brand-violet: #8b5cf6;
-      --brand-blue: #0ea5e9;
-      --text-muted: #94a3b8;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PESOS</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  html, body {
+    width: 100%; height: 100%;
+    background: #080b14;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15), var(--background) 70%);
-      color: var(--foreground);
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      overflow: hidden;
-    }
+  /* Animated background grid */
+  .grid {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridPan 8s linear infinite;
+  }
+  @keyframes gridPan {
+    0%   { background-position: 0 0; }
+    100% { background-position: 40px 40px; }
+  }
 
-    .card {
-      width: 100%;
-      max-width: 380px;
-      background: var(--card-bg);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      border: 1px solid var(--card-border);
-      border-radius: 1.25rem;
-      padding: 2.5rem 2rem;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
+  /* Glowing orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    animation: orb-drift 6s ease-in-out infinite alternate;
+  }
+  .orb-1 {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, #00ff88, transparent 70%);
+    top: -100px; left: -100px;
+    animation-duration: 7s;
+  }
+  .orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, #6366f1, transparent 70%);
+    bottom: -80px; right: -80px;
+    animation-duration: 9s;
+    animation-delay: -3s;
+  }
+  .orb-3 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, #0ea5e9, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation-duration: 5s;
+    animation-delay: -1.5s;
+  }
+  @keyframes orb-drift {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, 20px) scale(1.1); }
+  }
 
-    .logo-container {
-      position: relative;
-      width: 88px;
-      height: 88px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.75rem;
-    }
+  /* Main container */
+  .container {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100vh; gap: 32px;
+  }
 
-    .glow-ring {
-      position: absolute;
-      inset: -4px;
-      border-radius: 1.5rem;
-      background: linear-gradient(135deg, var(--brand-indigo), var(--brand-violet), var(--brand-blue));
-      filter: blur(8px);
-      opacity: 0.65;
-      animation: rotateGlow 6s linear infinite;
-    }
+  /* Logo mark */
+  .logo-wrap {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-ring {
+    position: absolute;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(0,255,136,0.3);
+    animation: spin 4s linear infinite;
+  }
+  .logo-ring::before {
+    content: '';
+    position: absolute; top: -2px; left: 50%;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #00ff88;
+    box-shadow: 0 0 12px #00ff88, 0 0 24px #00ff88;
+    transform: translateX(-50%);
+  }
+  .logo-ring-2 {
+    width: 90px; height: 90px;
+    border-color: rgba(99,102,241,0.3);
+    animation: spin 3s linear infinite reverse;
+  }
+  .logo-ring-2::before {
+    background: #6366f1;
+    box-shadow: 0 0 12px #6366f1, 0 0 24px #6366f1;
+  }
+  @keyframes spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 
-    .logo-bg {
-      position: absolute;
-      inset: 0;
-      border-radius: 1.5rem;
-      background: #090d1f;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
+  .logo-symbol {
+    font-size: 36px; font-weight: 800;
+    background: linear-gradient(135deg, #00ff88, #6366f1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -1px;
+    animation: pulse-glow 2s ease-in-out infinite alternate;
+  }
+  @keyframes pulse-glow {
+    0%   { filter: drop-shadow(0 0 8px rgba(0,255,136,0.5)); }
+    100% { filter: drop-shadow(0 0 20px rgba(99,102,241,0.7)); }
+  }
 
-    .logo-img {
-      width: 60px;
-      height: 60px;
-      object-fit: contain;
-      border-radius: 0.75rem;
-      animation: pulseLogo 2.5s ease-in-out infinite;
-    }
+  /* Title */
+  .title {
+    font-size: 28px; font-weight: 700; letter-spacing: 8px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.9);
+    animation: fade-in 0.8s ease forwards;
+  }
+  .subtitle {
+    font-size: 12px; letter-spacing: 3px;
+    color: rgba(0,255,136,0.6);
+    text-transform: uppercase;
+    margin-top: -20px;
+    animation: fade-in 1s ease 0.3s both;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
-    .title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      margin-bottom: 0.5rem;
-      background: linear-gradient(to right, #ffffff, #cbd5e1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+  /* Progress bar */
+  .progress-wrap {
+    width: 280px;
+    animation: fade-in 1s ease 0.6s both;
+  }
+  .progress-bar {
+    width: 100%; height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88, #6366f1, #0ea5e9);
+    background-size: 200% 100%;
+    animation: progress-scan 1.8s ease-in-out infinite, bg-shift 3s linear infinite;
+    border-radius: 2px;
+  }
+  @keyframes progress-scan {
+    0%   { width: 0%; margin-left: 0%; }
+    50%  { width: 60%; margin-left: 20%; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+  @keyframes bg-shift {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+  }
 
-    .subtitle {
-      font-size: 0.825rem;
-      color: var(--text-muted);
-      max-width: 260px;
-      line-height: 1.5;
-      margin-bottom: 1.75rem;
-    }
+  /* Status dots */
+  .status-dots {
+    display: flex; gap: 6px; align-items: center;
+    margin-top: 10px; justify-content: center;
+  }
+  .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: rgba(0,255,136,0.4);
+    animation: dot-pulse 1.4s ease-in-out infinite;
+  }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.4; }
+    50%       { transform: scale(1.5); opacity: 1; background: #00ff88; box-shadow: 0 0 8px #00ff88; }
+  }
 
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.85rem;
-      border-radius: 9999px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      font-size: 0.6875rem;
-      color: #94a3b8;
-      font-weight: 500;
-    }
-
-    .ping-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background-color: var(--brand-indigo);
-      position: relative;
-    }
-
-    .ping-dot::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 50%;
-      background-color: var(--brand-indigo);
-      animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-    }
-
-    @keyframes rotateGlow {
-      0% {
-        transform: rotate(0deg);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-
-    @keyframes pulseLogo {
-      0%, 100% {
-        transform: scale(1);
-        filter: drop-shadow(0 0 0px rgba(99, 102, 241, 0));
-      }
-      50% {
-        transform: scale(1.05);
-        filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.3));
-      }
-    }
-
-    @keyframes ping {
-      75%, 100% {
-        transform: scale(3.5);
-        opacity: 0;
-      }
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-  </style>
+  /* Status text */
+  .status-text {
+    font-size: 11px; letter-spacing: 2px; color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    animation: fade-in 1s ease 1s both;
+  }
+</style>
 </head>
 <body>
-  <div class="card">
-    <div class="logo-container">
-      <div class="glow-ring"></div>
-      <div class="logo-bg">
-        <img class="logo-img" src="logo.png" alt="Pesos Logo">
-      </div>
+
+<div class="grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="container">
+  <div class="logo-wrap">
+    <div class="logo-ring"></div>
+    <div class="logo-ring logo-ring-2"></div>
+    <span class="logo-symbol">$</span>
+  </div>
+
+  <div style="text-align:center; display:flex; flex-direction:column; gap:8px;">
+    <div class="title">PESOS</div>
+    <div class="subtitle">Personal Operating System</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar">
+      <div class="progress-fill"></div>
     </div>
-    <h1 class="title">Iniciando Pesos</h1>
-    <p class="subtitle">Arrancando servicios locales. Esta ventana cargará la aplicación automáticamente cuando esté lista.</p>
-    <div class="status-badge">
-      <span class="ping-dot"></span>
-      <span>Iniciando servidor local...</span>
+    <div class="status-dots">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
     </div>
   </div>
 
-  <script>
-    // Poll the backend until it's ready, then redirect
-    const appUrl = 'http://localhost:3000';
-    
-    function checkConnection() {
-      // Use no-cors mode to bypass CORS blocking
-      fetch(appUrl, { mode: 'no-cors' })
-        .then(() => {
-          // Success! Redirect to the application
-          window.location.href = appUrl;
-        })
-        .catch(() => {
-          // Connection failed, retry in 800ms
-          setTimeout(checkConnection, 800);
-        });
-    }
+  <div class="status-text">Iniciando sistema</div>
+</div>
 
-    // Start checking after a short delay to let the window render
-    setTimeout(checkConnection, 500);
-  </script>
 </body>
 </html>
