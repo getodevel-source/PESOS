@@ -130,4 +130,28 @@ describe('sqlite-db persistence & resilience', () => {
     const row = db.prepare('SELECT * FROM profiles WHERE id = ?').get('00000000-0000-0000-0000-000000000000')
     expect(row).toBeDefined()
   })
+
+  it('automatically generates a UUID for insert if id is not provided', async () => {
+    const { runSQLiteQuery } = await import('./sqlite-db')
+    const result = runSQLiteQuery({
+      table: 'tasks',
+      action: 'insert',
+      args: {
+        user_id: '00000000-0000-0000-0000-000000000000',
+        title: 'TDD test task',
+        status: 'todo'
+      },
+      filters: [],
+      order: null,
+      single: false,
+      maybeSingle: false
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.data).toBeDefined()
+    const data = result.data as any
+    expect(data.id).toBeDefined()
+    expect(typeof data.id).toBe('string')
+    expect(data.id.length).toBeGreaterThan(10) // should be a valid UUID
+  })
 })

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import path from 'path'
 import os from 'os'
 import fs from 'fs'
+import crypto from 'crypto'
 import { getAppDir } from './paths'
 
 // ─── Shared types for the SQLite-backed Supabase mock ────────────────────────
@@ -906,16 +907,23 @@ export function runSQLiteQuery(query: MockQuery): MockChainResult {
     }
 
     // 3. Build query
+    let insertedArgs: Record<string, unknown> | null = null
+
     if (action === 'select') {
       sql = `SELECT * FROM ${tbl}`
     } else if (action === 'insert') {
-      const fields = args ? Object.keys(args).map(cleanIdentifier) : []
+      const argsWithId = args ? { ...args } : {}
+      if (!argsWithId['id']) {
+        argsWithId['id'] = crypto.randomUUID()
+      }
+      insertedArgs = argsWithId
+      const fields = Object.keys(argsWithId).map(cleanIdentifier)
       const placeholders = fields.map(() => '?').join(', ')
-      const values = args ? fields.map(f => {
-        const val = args[f]
+      const values = fields.map(f => {
+        const val = argsWithId[f]
         if (typeof val === 'object' && val !== null) return JSON.stringify(val)
         return val
-      }) : []
+      })
       sql = `INSERT INTO ${tbl} (${fields.join(', ')}) VALUES (${placeholders})`
       params.push(...values)
     } else if (action === 'update') {
@@ -969,7 +977,7 @@ export function runSQLiteQuery(query: MockQuery): MockChainResult {
       const stmt = db.prepare(sql)
       const info = stmt.run(...params)
       if (action === 'insert') {
-        data = { id: args?.['id'], ...args }
+        data = insertedArgs
       } else {
         data = { changes: info.changes }
       }
