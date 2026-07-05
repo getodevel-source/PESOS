@@ -41,6 +41,9 @@ function loadEnv() {
 
 loadEnv()
 
+// Use a non-standard port in production to avoid conflicts with npm run dev (port 3000)
+const PROD_PORT = '3847'
+
 function startNextServer() {
   if (isDev) {
     // In development mode, we assume the server is run separately (npm run dev)
@@ -55,7 +58,7 @@ function startNextServer() {
       ...process.env,
       NODE_ENV: 'production',
       NEXT_TELEMETRY_DISABLED: '1',
-      PORT: '3000',
+      PORT: PROD_PORT,
       HOSTNAME: '127.0.0.1'
     }
   })
@@ -130,7 +133,7 @@ async function waitForNextServer(maxWaitMs = 30000, intervalMs = 500) {
   const start = Date.now()
   while (Date.now() - start < maxWaitMs) {
     try {
-      const r = await fetch('http://127.0.0.1:3000/api/health')
+      const r = await fetch(`http://127.0.0.1:${PROD_PORT}/api/health`)
       if (r.ok) return true
     } catch {}
     await new Promise(res => setTimeout(res, intervalMs))
@@ -150,7 +153,7 @@ function createWindow() {
     },
   })
 
-  const startUrl = 'http://localhost:3000'
+  const startUrl = `http://localhost:${PROD_PORT}`
 
   if (!isDev) {
     waitForNextServer(30000).then(ready => {
@@ -230,7 +233,7 @@ function createTray() {
 async function attemptHandshake(retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
-      const r = await fetch('http://127.0.0.1:3000/api/auth/handshake', { method: 'POST' })
+      const r = await fetch(`http://127.0.0.1:${PROD_PORT}/api/auth/handshake`, { method: 'POST' })
       if (r.ok) return
     } catch {
       // Next.js is not up yet — retry.
