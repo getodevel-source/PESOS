@@ -41,6 +41,25 @@ function findPendingDebPath() {
   }
 }
 
+// Get the current app version from Electron's app module or package.json.
+// We read package.json directly because this module may be required before
+// the Electron `app` object is fully initialised (e.g. during IPC setup).
+function getCurrentVersion() {
+  try {
+    const { app } = require('electron')
+    if (app && typeof app.getVersion === 'function') {
+      const v = app.getVersion()
+      if (v && v !== '0.0.0') return v
+    }
+  } catch {}
+  try {
+    const pkgPath = path.join(__dirname, 'package.json')
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+    return pkg.version || '0.0.0'
+  } catch {}
+  return '0.0.0'
+}
+
 // Detect how the app is installed. The `electron-updater` class
 // selection reads `process.resourcesPath/package-type`, but for AppImage
 // builds that file is absent / unreliable (the AppImage runtime sets
