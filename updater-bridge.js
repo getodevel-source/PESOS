@@ -36,9 +36,7 @@ function getPaths() {
 
 function ensureStateDir() {
   const { STATE_DIR } = getPaths()
-  if (!fs.existsSync(STATE_DIR)) {
-    fs.mkdirSync(STATE_DIR, { recursive: true })
-  }
+  fs.mkdirSync(STATE_DIR, { recursive: true })
 }
 
 function getCurrentVersion() {

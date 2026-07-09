@@ -10,20 +10,12 @@ function loadEnv() {
   for (const file of envFiles) {
     const envPath = path.join(process.cwd(), file)
     if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, 'utf8')
-      content.split('\n').forEach((line) => {
-        if (line.trim().startsWith('#') || !line.trim()) return
-        const parts = line.split('=')
-        if (parts.length >= 2) {
-          const key = parts[0].trim()
-          const value = parts.slice(1).join('=').trim()
-          // Only set if not already set by system/shell env
-          if (!process.env[key]) {
-            process.env[key] = value
-          }
-        }
-      })
-      console.log(`Loaded environment variables from ${file}`)
+      try {
+        process.loadEnvFile(envPath)
+        console.log(`Loaded environment variables from ${file}`)
+      } catch (err) {
+        console.error(`Failed to load environment variables from ${file}:`, err)
+      }
     }
   }
 }

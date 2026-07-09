@@ -1,0 +1,753 @@
+{
+  "communities": {
+    "0": [
+      "src_app_db_rls_test",
+      "src_components_authform",
+      "src_components_authform_authform",
+      "src_components_authgate",
+      "src_components_authgate_authgate",
+      "src_components_dashboard",
+      "src_components_dashboard_achievementrow",
+      "src_components_dashboard_dashboard",
+      "src_components_dashboard_dashboardprops",
+      "src_components_dashboard_userachievementrow",
+      "src_components_dashboard_weather_gradients",
+      "src_components_dashboard_weather_icons",
+      "src_components_dashboard_weather_labels",
+      "src_components_dashboard_weatherstate",
+      "src_components_dietlog",
+      "src_components_dietlog_dietlog",
+      "src_components_dietlog_dietlogform",
+      "src_components_dietlog_dietlogprops",
+      "src_components_dietlog_frequent_foods",
+      "src_components_dietlog_goals",
+      "src_components_habitlist",
+      "src_components_habitlist_habit",
+      "src_components_habitlist_habitlist",
+      "src_components_habitlist_habitlistprops",
+      "src_components_habitlist_habitlog",
+      "src_components_journalreflection",
+      "src_components_journalreflection_default_tags",
+      "src_components_journalreflection_journalentry",
+      "src_components_journalreflection_journalreflection",
+      "src_components_journalreflection_journalreflectioneditor",
+      "src_components_journalreflection_journalreflectionprops",
+      "src_components_journalreflection_mood_options",
+      "src_components_taskcalendar",
+      "src_components_taskcalendar_taskcalendar",
+      "src_components_taskcalendar_taskcalendarprops",
+      "src_components_tasklist",
+      "src_components_tasklist_task",
+      "src_components_tasklist_tasklist",
+      "src_components_tasklist_tasklistprops",
+      "src_components_transactionsummary",
+      "src_components_transactionsummary_budgetstatus",
+      "src_components_transactionsummary_formatarsonchange",
+      "src_components_transactionsummary_getmonthkey",
+      "src_components_transactionsummary_parsearsinput",
+      "src_components_transactionsummary_toarsdisplay",
+      "src_components_transactionsummary_transaction",
+      "src_components_transactionsummary_transactionsummary",
+      "src_components_transactionsummary_transactionsummaryprops",
+      "src_lib_sqlite_db_mockpostgresterror",
+      "src_lib_supabase_client",
+      "src_lib_supabase_client_createclient",
+      "src_lib_supabase_test"
+    ],
+    "1": [
+      "src_app_api_ai_chat_route",
+      "src_app_api_ai_chat_route_buildusercontext",
+      "src_app_api_ai_chat_route_habitlogrow",
+      "src_app_api_ai_chat_route_habitrow",
+      "src_app_api_ai_chat_route_post",
+      "src_app_api_ai_chat_route_streamwithgemini",
+      "src_app_api_ai_chat_route_taskrow",
+      "src_app_api_ai_chat_route_transactionrow",
+      "src_app_api_ai_chat_validate_route",
+      "src_app_api_ai_chat_validate_route_post",
+      "src_app_api_setup_route",
+      "src_app_api_setup_route_get",
+      "src_app_api_setup_route_post",
+      "src_app_api_setup_route_sanitizeenvvalue",
+      "src_app_api_telegram_route",
+      "src_app_api_telegram_route_buildusercontext",
+      "src_app_api_telegram_route_getairesponse",
+      "src_app_api_telegram_route_getmeprate",
+      "src_app_api_telegram_route_habitlogrow",
+      "src_app_api_telegram_route_habitrow",
+      "src_app_api_telegram_route_handlecommand",
+      "src_app_api_telegram_route_parseamount",
+      "src_app_api_telegram_route_post",
+      "src_app_api_telegram_route_sendtelegrammessage",
+      "src_app_api_telegram_route_taskrow",
+      "src_app_api_telegram_route_telegrammessage",
+      "src_app_api_telegram_route_telegrampayload",
+      "src_app_api_telegram_route_toarsdisplay",
+      "src_app_api_telegram_route_transactionrow",
+      "src_app_api_telegram_route_upcomingtaskrow",
+      "src_lib_ai_config",
+      "src_lib_ai_config_aiconfig",
+      "src_lib_ai_config_aiprovider",
+      "src_lib_ai_config_configpath",
+      "src_lib_ai_config_default",
+      "src_lib_ai_config_getdefaultprovider",
+      "src_lib_env_loader",
+      "src_lib_env_loader_loaduserenv",
+      "src_lib_paths",
+      "src_lib_paths_getappdir",
+      "src_lib_paths_test",
+      "src_lib_supabase_createadminclient"
+    ],
+    "2": [
+      "electron",
+      "electron_app_browserwindow_tray_menu",
+      "electron_attempthandshake",
+      "electron_createtray",
+      "electron_createwindow",
+      "electron_fs",
+      "electron_loadenv",
+      "electron_os",
+      "electron_path",
+      "electron_setupautoupdater",
+      "electron_spawn",
+      "electron_startnextserver",
+      "electron_starttelegrampoll",
+      "electron_waitfornextserver",
+      "package_devdependencies",
+      "package_devdependencies_electron",
+      "package_devdependencies_electron_builder",
+      "package_devdependencies_eslint",
+      "package_devdependencies_eslint_config_next",
+      "package_devdependencies_tailwindcss",
+      "package_devdependencies_tailwindcss_postcss",
+      "package_devdependencies_types_better_sqlite3",
+      "package_devdependencies_types_node",
+      "package_devdependencies_types_react",
+      "package_devdependencies_types_react_dom",
+      "package_devdependencies_typescript",
+      "package_devdependencies_vitest",
+      "package_devdependencies_vitest_coverage_v8",
+      "updater",
+      "updater_autoupdater",
+      "updater_check_request_path_download_request_path_install_request_path_open_deb_request_path_open_releases_request_path",
+      "updater_detectinstallmethod",
+      "updater_findpendingdebpath",
+      "updater_fs",
+      "updater_getcurrentversion",
+      "updater_js_updater_bridge",
+      "updater_os",
+      "updater_path",
+      "updater_setupautoupdater",
+      "updater_shell"
+    ],
+    "3": [
+      "src_app_api_update_route",
+      "src_app_api_update_route_get",
+      "src_app_api_update_route_post",
+      "src_app_api_update_route_test",
+      "src_app_api_update_route_test_makejsonrequest",
+      "src_app_api_update_route_test_mockedgetstate",
+      "src_app_api_update_route_test_mockedrequestcheck",
+      "src_app_api_update_route_test_mockedrequestdownload",
+      "src_app_api_update_route_test_mockedrequestinstall",
+      "src_app_api_update_route_test_mockedrequestopendeb",
+      "src_app_api_update_route_test_mockedrequestopenreleases",
+      "src_lib_updater_bridge",
+      "src_lib_updater_bridge_test",
+      "src_lib_updater_bridge_test_bridge",
+      "src_lib_updater_bridge_test_loadbridge",
+      "updater_bridge_ensurestatedir",
+      "updater_bridge_fs",
+      "updater_bridge_getcurrentversion",
+      "updater_bridge_getpaths",
+      "updater_bridge_getstate",
+      "updater_bridge_js_updater_bridge",
+      "updater_bridge_os",
+      "updater_bridge_path",
+      "updater_bridge_readstate",
+      "updater_bridge_requestcheck",
+      "updater_bridge_requestdownload",
+      "updater_bridge_requestinstall",
+      "updater_bridge_requestopendeb",
+      "updater_bridge_requestopenreleases",
+      "updater_bridge_writerequestfile",
+      "updater_bridge_writestate"
+    ],
+    "4": [
+      "package",
+      "package_author",
+      "package_author_email",
+      "package_author_name",
+      "package_dependencies",
+      "package_dependencies_better_sqlite3",
+      "package_dependencies_electron_updater",
+      "package_dependencies_google_generative_ai",
+      "package_dependencies_lucide_react",
+      "package_dependencies_next",
+      "package_dependencies_openai",
+      "package_dependencies_react",
+      "package_dependencies_react_dom",
+      "package_dependencies_supabase_ssr",
+      "package_dependencies_supabase_supabase_js",
+      "package_main",
+      "package_name",
+      "package_private",
+      "package_repository",
+      "package_scripts",
+      "package_scripts_build",
+      "package_scripts_build_electron",
+      "package_scripts_dev",
+      "package_scripts_electron",
+      "package_scripts_electron_pack",
+      "package_scripts_lint",
+      "package_scripts_standalone_copy",
+      "package_scripts_start",
+      "package_scripts_test",
+      "package_version"
+    ],
+    "5": [
+      "src_lib_sqlite_db",
+      "src_lib_sqlite_db_achievementstable",
+      "src_lib_sqlite_db_db",
+      "src_lib_sqlite_db_dbdir",
+      "src_lib_sqlite_db_dbpath",
+      "src_lib_sqlite_db_habitlogstable",
+      "src_lib_sqlite_db_habitstable",
+      "src_lib_sqlite_db_inputstable",
+      "src_lib_sqlite_db_insertachievement",
+      "src_lib_sqlite_db_journalentriestable",
+      "src_lib_sqlite_db_journalentrytype",
+      "src_lib_sqlite_db_journalmetadata",
+      "src_lib_sqlite_db_journalmetadatainput",
+      "src_lib_sqlite_db_mockchainresult",
+      "src_lib_sqlite_db_profileexists",
+      "src_lib_sqlite_db_profilestable",
+      "src_lib_sqlite_db_seedachievements",
+      "src_lib_sqlite_db_taskstable",
+      "src_lib_sqlite_db_taskstatus",
+      "src_lib_sqlite_db_test",
+      "src_lib_sqlite_db_transactionstable",
+      "src_lib_sqlite_db_transactiontype",
+      "src_lib_sqlite_db_userachievementstable",
+      "src_lib_sqlite_db_userstatstable"
+    ],
+    "6": [
+      "src_app_api_telegram_route_test",
+      "src_app_api_telegram_route_test_googlegenerativeai",
+      "src_app_api_telegram_route_test_googlegenerativeai_constructor",
+      "src_app_api_telegram_route_test_googlegenerativeai_getgenerativemodel",
+      "src_app_api_telegram_route_test_mockedsupabasemodule",
+      "src_app_api_telegram_route_test_openai",
+      "src_app_api_telegram_route_test_openai_constructor",
+      "src_app_api_telegram_route_test_openaicreatecompletion_googlegeneratecontent",
+      "src_app_api_telegram_route_test_supabasemock",
+      "src_lib_sqlite_db_mockquerychain",
+      "src_lib_sqlite_db_mockquerychain_delete",
+      "src_lib_sqlite_db_mockquerychain_eq",
+      "src_lib_sqlite_db_mockquerychain_gt",
+      "src_lib_sqlite_db_mockquerychain_gte",
+      "src_lib_sqlite_db_mockquerychain_insert",
+      "src_lib_sqlite_db_mockquerychain_limit",
+      "src_lib_sqlite_db_mockquerychain_maybesingle",
+      "src_lib_sqlite_db_mockquerychain_order",
+      "src_lib_sqlite_db_mockquerychain_select",
+      "src_lib_sqlite_db_mockquerychain_single",
+      "src_lib_sqlite_db_mockquerychain_then",
+      "src_lib_sqlite_db_mockquerychain_throwonerror",
+      "src_lib_sqlite_db_mockquerychain_update"
+    ],
+    "7": [
+      "package_build",
+      "package_build_appid",
+      "package_build_asar",
+      "package_build_deb",
+      "package_build_directories",
+      "package_build_files",
+      "package_build_linux",
+      "package_build_mac",
+      "package_build_productname",
+      "package_build_publish",
+      "package_build_win",
+      "package_deb_depends",
+      "package_directories_output",
+      "package_linux_category",
+      "package_linux_icon",
+      "package_linux_target",
+      "package_mac_icon",
+      "package_mac_target",
+      "package_win_icon",
+      "package_win_target"
+    ],
+    "8": [
+      "tsconfig",
+      "tsconfig_compileroptions",
+      "tsconfig_compileroptions_allowjs",
+      "tsconfig_compileroptions_esmoduleinterop",
+      "tsconfig_compileroptions_incremental",
+      "tsconfig_compileroptions_isolatedmodules",
+      "tsconfig_compileroptions_jsx",
+      "tsconfig_compileroptions_lib",
+      "tsconfig_compileroptions_module",
+      "tsconfig_compileroptions_moduleresolution",
+      "tsconfig_compileroptions_noemit",
+      "tsconfig_compileroptions_paths",
+      "tsconfig_compileroptions_plugins",
+      "tsconfig_compileroptions_resolvejsonmodule",
+      "tsconfig_compileroptions_skiplibcheck",
+      "tsconfig_compileroptions_strict",
+      "tsconfig_compileroptions_target",
+      "tsconfig_exclude",
+      "tsconfig_include",
+      "tsconfig_paths"
+    ],
+    "9": [
+      "src_lib_sqlite_db_mockfilterclause",
+      "src_lib_sqlite_db_mockorderclause",
+      "src_lib_sqlite_db_queryaction",
+      "src_lib_supabase",
+      "src_lib_supabase_createserverclientinstance",
+      "src_lib_supabase_servermockquerychain",
+      "src_lib_supabase_servermockquerychain_constructor",
+      "src_lib_supabase_servermockquerychain_delete",
+      "src_lib_supabase_servermockquerychain_eq",
+      "src_lib_supabase_servermockquerychain_gt",
+      "src_lib_supabase_servermockquerychain_gte",
+      "src_lib_supabase_servermockquerychain_insert",
+      "src_lib_supabase_servermockquerychain_limit",
+      "src_lib_supabase_servermockquerychain_maybesingle",
+      "src_lib_supabase_servermockquerychain_order",
+      "src_lib_supabase_servermockquerychain_select",
+      "src_lib_supabase_servermockquerychain_single",
+      "src_lib_supabase_servermockquerychain_throwonerror",
+      "src_lib_supabase_servermockquerychain_update"
+    ],
+    "10": [
+      "scripts_reinstall_pesos_clean",
+      "scripts_reinstall_pesos_clean_appdir",
+      "scripts_reinstall_pesos_clean_appimage_name",
+      "scripts_reinstall_pesos_clean_appimage_path",
+      "scripts_reinstall_pesos_clean_bin_link",
+      "scripts_reinstall_pesos_clean_cache_dir",
+      "scripts_reinstall_pesos_clean_config_dir",
+      "scripts_reinstall_pesos_clean_die",
+      "scripts_reinstall_pesos_clean_err",
+      "scripts_reinstall_pesos_clean_github_repo",
+      "scripts_reinstall_pesos_clean_info",
+      "scripts_reinstall_pesos_clean_legacy_home",
+      "scripts_reinstall_pesos_clean_log",
+      "scripts_reinstall_pesos_clean_ok",
+      "scripts_reinstall_pesos_clean_release_url",
+      "scripts_reinstall_pesos_clean_sh__entry",
+      "scripts_reinstall_pesos_clean_version",
+      "scripts_reinstall_pesos_clean_warn"
+    ],
+    "11": [
+      "src_app_api_auth_handshake_route",
+      "src_app_api_auth_handshake_route_post",
+      "src_app_api_sqlite_route",
+      "src_app_api_sqlite_route_post",
+      "src_lib_auth_gate",
+      "src_lib_auth_gate_getorcreatesecret",
+      "src_lib_auth_gate_secret_path",
+      "src_lib_auth_gate_signsession",
+      "src_lib_auth_gate_verifysession",
+      "src_lib_sqlite_db_mockquery",
+      "src_proxy",
+      "src_proxy_allow_list_exact",
+      "src_proxy_allow_list_prefixes",
+      "src_proxy_config",
+      "src_proxy_proxy"
+    ],
+    "12": [
+      "scripts_update_appimage",
+      "scripts_update_appimage_api_url",
+      "scripts_update_appimage_cleanup",
+      "scripts_update_appimage_confirm",
+      "scripts_update_appimage_die",
+      "scripts_update_appimage_err",
+      "scripts_update_appimage_github_repo",
+      "scripts_update_appimage_info",
+      "scripts_update_appimage_is_older",
+      "scripts_update_appimage_log",
+      "scripts_update_appimage_ok",
+      "scripts_update_appimage_print_usage",
+      "scripts_update_appimage_sh__entry",
+      "scripts_update_appimage_warn"
+    ],
+    "13": [
+      "src_components_chatbot",
+      "src_components_chatbot_aiprovider",
+      "src_components_chatbot_authuserpayload",
+      "src_components_chatbot_chatbot",
+      "src_components_chatbot_connectionaction",
+      "src_components_chatbot_connectionreducer",
+      "src_components_chatbot_connectionstate",
+      "src_components_chatbot_formatmarkdown",
+      "src_components_chatbot_initialconnectionstate",
+      "src_components_chatbot_message",
+      "src_components_chatbot_providerconfig",
+      "src_components_chatbot_providers",
+      "src_components_chatbot_validationresult",
+      "src_components_chatbot_welcome_message"
+    ],
+    "14": [
+      "src_lib_supabase_client_mockquerychain",
+      "src_lib_supabase_client_mockquerychain_constructor",
+      "src_lib_supabase_client_mockquerychain_delete",
+      "src_lib_supabase_client_mockquerychain_eq",
+      "src_lib_supabase_client_mockquerychain_gt",
+      "src_lib_supabase_client_mockquerychain_gte",
+      "src_lib_supabase_client_mockquerychain_insert",
+      "src_lib_supabase_client_mockquerychain_limit",
+      "src_lib_supabase_client_mockquerychain_maybesingle",
+      "src_lib_supabase_client_mockquerychain_order",
+      "src_lib_supabase_client_mockquerychain_select",
+      "src_lib_supabase_client_mockquerychain_single",
+      "src_lib_supabase_client_mockquerychain_throwonerror",
+      "src_lib_supabase_client_mockquerychain_update"
+    ],
+    "15": [
+      "src_lib_sqlite_db_mockdatabase",
+      "src_lib_sqlite_db_mockqueryresult",
+      "src_lib_sqlite_db_mocksupabaseclient",
+      "src_lib_sqlite_db_mocksupabaseclient_from",
+      "src_lib_sqlite_db_mocksupabaseclient_rpc",
+      "src_lib_supabase_client_mockbrowserclient",
+      "src_lib_supabase_client_mockbrowserclient_from",
+      "src_lib_supabase_client_mockbrowserclient_rpc",
+      "src_lib_supabase_client_mockquerychain_then",
+      "src_lib_supabase_servermockquerychain_then",
+      "src_lib_supabase_servermocksupabaseclient",
+      "src_lib_supabase_servermocksupabaseclient_from",
+      "src_lib_supabase_servermocksupabaseclient_rpc"
+    ],
+    "16": [
+      "src_components_errorboundary",
+      "src_components_errorboundary_errorboundary",
+      "src_components_errorboundary_errorboundary_componentdidcatch",
+      "src_components_errorboundary_errorboundary_getderivedstatefromerror",
+      "src_components_errorboundary_errorboundary_handlereset",
+      "src_components_errorboundary_errorboundary_render",
+      "src_components_errorboundary_props",
+      "src_components_errorboundary_state"
+    ],
+    "17": [
+      "install",
+      "install_detect_distro",
+      "install_err",
+      "install_info",
+      "install_ok",
+      "install_sh__entry",
+      "install_warn"
+    ],
+    "18": [
+      "src_app_page",
+      "src_app_page_home",
+      "src_components_setupwizard",
+      "src_components_setupwizard_defaultfield",
+      "src_components_setupwizard_fieldstate",
+      "src_components_setupwizard_setupwizard",
+      "src_components_setupwizard_statusicon"
+    ],
+    "19": [
+      "scripts_bot_daemon",
+      "scripts_bot_daemon_fs",
+      "scripts_bot_daemon_loadenv",
+      "scripts_bot_daemon_path",
+      "scripts_bot_daemon_starttelegrampoll"
+    ],
+    "20": [
+      "src_app_layout",
+      "src_app_layout_geistmono",
+      "src_app_layout_inter",
+      "src_app_layout_metadata",
+      "src_app_layout_rootlayout"
+    ],
+    "21": [
+      "src_test_rollback_test",
+      "src_test_rollback_test_builddropregex",
+      "src_test_rollback_test_original_files",
+      "src_test_rollback_test_originals",
+      "src_test_rollback_test_rollback"
+    ],
+    "22": [
+      "venv_graphify_bin_activate",
+      "venv_graphify_bin_activate_get_pyvenvconfig",
+      "venv_graphify_bin_activate_global_deactivate",
+      "venv_graphify_bin_activate_global_old_virtual_prompt",
+      "venv_graphify_bin_activate_global_prompt"
+    ],
+    "23": [
+      "src_app_api_telegram_setup_route",
+      "src_app_api_telegram_setup_route_post",
+      "src_app_api_telegram_setup_route_test",
+      "src_app_api_telegram_setup_route_test_fetchcalls"
+    ],
+    "24": [
+      "src_lib_sqlite_db_addxp",
+      "src_lib_sqlite_db_checkandunlockachievements",
+      "src_lib_sqlite_db_cleanidentifier",
+      "src_lib_sqlite_db_runsqlitequery"
+    ],
+    "25": [
+      "eslint_config",
+      "eslint_config_eslintconfig"
+    ],
+    "26": [
+      "next_config",
+      "next_config_nextconfig"
+    ],
+    "27": [
+      "postcss_config",
+      "postcss_config_config"
+    ],
+    "28": [
+      "scripts_check_mock_schema_sync",
+      "scripts_check_mock_schema_sync_sh__entry"
+    ],
+    "29": [
+      "src_app_api_exchange_rate_route",
+      "src_app_api_exchange_rate_route_get"
+    ],
+    "30": [
+      "src_app_api_health_route",
+      "src_app_api_health_route_get"
+    ],
+    "31": [
+      "src_app_error",
+      "src_app_error_globalerror"
+    ],
+    "32": [
+      "src_app_api_auth_handshake_route_test"
+    ],
+    "33": [
+      "src_app_globals_test"
+    ],
+    "34": [
+      "src_components_components_aesthetic_test"
+    ],
+    "35": [
+      "src_lib_ai_config_test"
+    ],
+    "36": [
+      "src_lib_env_loader_test"
+    ],
+    "37": [
+      "src_proxy_test"
+    ],
+    "38": [
+      "venv_graphify_bin_f2py"
+    ],
+    "39": [
+      "venv_graphify_bin_graphify"
+    ],
+    "40": [
+      "venv_graphify_bin_graphify_mcp"
+    ],
+    "41": [
+      "venv_graphify_bin_numpy_config"
+    ],
+    "42": [
+      "venv_graphify_bin_pip"
+    ],
+    "43": [
+      "venv_graphify_bin_pip3"
+    ],
+    "44": [
+      "vitest_config"
+    ]
+  },
+  "cohesion": {
+    "0": 0.06711915535444947,
+    "1": 0.08943089430894309,
+    "2": 0.057692307692307696,
+    "3": 0.16344086021505377,
+    "4": 0.06666666666666667,
+    "5": 0.08695652173913043,
+    "6": 0.08695652173913043,
+    "7": 0.1,
+    "8": 0.1,
+    "9": 0.12280701754385964,
+    "10": 0.17647058823529413,
+    "11": 0.22857142857142856,
+    "12": 0.2967032967032967,
+    "13": 0.16483516483516483,
+    "14": 0.14285714285714285,
+    "15": 0.1794871794871795,
+    "16": 0.25,
+    "17": 0.5714285714285714,
+    "18": 0.3333333333333333,
+    "19": 0.4,
+    "20": 0.4,
+    "21": 0.4,
+    "22": 0.4,
+    "23": 0.6666666666666666,
+    "24": 0.6666666666666666,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0
+  },
+  "gods": [
+    {
+      "id": "src_lib_supabase_client_createclient",
+      "label": "createClient()",
+      "degree": 19
+    },
+    {
+      "id": "src_lib_supabase_client_mockquerychain",
+      "label": "MockQueryChain",
+      "degree": 18
+    },
+    {
+      "id": "src_lib_supabase_servermockquerychain",
+      "label": "ServerMockQueryChain",
+      "degree": 18
+    },
+    {
+      "id": "tsconfig_compileroptions",
+      "label": "compilerOptions",
+      "degree": 16
+    },
+    {
+      "id": "src_lib_sqlite_db_mockquerychain",
+      "label": "MockQueryChain",
+      "degree": 15
+    },
+    {
+      "id": "package_build",
+      "label": "build",
+      "degree": 11
+    },
+    {
+      "id": "package_scripts",
+      "label": "scripts",
+      "degree": 10
+    },
+    {
+      "id": "scripts_update_appimage_sh__entry",
+      "label": "update-appimage.sh script",
+      "degree": 9
+    },
+    {
+      "id": "src_app_api_telegram_route_handlecommand",
+      "label": "handleCommand()",
+      "degree": 9
+    },
+    {
+      "id": "src_app_api_telegram_route_post",
+      "label": "POST()",
+      "degree": 9
+    }
+  ],
+  "surprises": [
+    {
+      "source": "GET()",
+      "target": "getState()",
+      "source_files": [
+        "src/app/api/update/route.ts",
+        "updater-bridge.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "POST()",
+      "target": "getState()",
+      "source_files": [
+        "src/app/api/update/route.ts",
+        "updater-bridge.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "POST()",
+      "target": "requestCheck()",
+      "source_files": [
+        "src/app/api/update/route.ts",
+        "updater-bridge.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "POST()",
+      "target": "requestDownload()",
+      "source_files": [
+        "src/app/api/update/route.ts",
+        "updater-bridge.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "POST()",
+      "target": "requestInstall()",
+      "source_files": [
+        "src/app/api/update/route.ts",
+        "updater-bridge.js"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `ServerMockQueryChain` connect `ServerMockQueryChain` to `MockDatabase`?",
+      "why": "High betweenness centrality (0.028) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `MockQueryChain` connect `MockQueryChain` to `Dashboard.tsx`, `ServerMockQueryChain`, `MockDatabase`?",
+      "why": "High betweenness centrality (0.027) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `MockQueryChain` connect `MockQueryChain` to `sqlite-db.ts`?",
+      "why": "High betweenness centrality (0.027) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `{ app, BrowserWindow, Tray, Menu }`, `path`, `{ spawn }` to the rest of the system?",
+      "why": "184 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Dashboard.tsx` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.06711915535444947 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `route.ts` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.08943089430894309 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `electron.js` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.057692307692307696 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

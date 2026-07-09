@@ -24,18 +24,12 @@ function loadEnv() {
   const envPath = fs.existsSync(userEnvPath) ? userEnvPath : devEnvPath
 
   if (fs.existsSync(envPath)) {
-    const content = fs.readFileSync(envPath, 'utf8')
-    content.split('\n').forEach((line) => {
-      // Ignore comments and empty lines
-      if (line.trim().startsWith('#') || !line.trim()) return
-      const parts = line.split('=')
-      if (parts.length >= 2) {
-        const key = parts[0].trim()
-        const value = parts.slice(1).join('=').trim().replace(/^["']|["']$/g, '')
-        process.env[key] = value
-      }
-    })
-    console.log(`Loaded environment variables from: ${envPath}`)
+    try {
+      process.loadEnvFile(envPath)
+      console.log(`Loaded environment variables from: ${envPath}`)
+    } catch (err) {
+      console.error(`Failed to load environment variables from: ${envPath}`, err)
+    }
   }
 }
 

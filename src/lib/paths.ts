@@ -25,9 +25,7 @@ export function getAppDir(): string {
   }
 
   // Ensure directory exists
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
-  }
+  fs.mkdirSync(dir, { recursive: true })
 
   // Migration logic: Copy legacy config files if legacy db exists and new db does not
   const legacyDir = path.join(os.homedir(), '.config', 'pesos')
