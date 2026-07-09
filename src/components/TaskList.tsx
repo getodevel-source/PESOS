@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus, Check, Trash2, EyeOff, Calendar, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
+import { triggerConfetti } from '@/lib/confetti'
 
 export interface Task {
   id: string
@@ -11,6 +12,7 @@ export interface Task {
   status: 'todo' | 'done' | 'ignored'
   due_date?: string | null
   completed_at?: string | null
+  category?: string | null
 }
 
 interface TaskListProps {
@@ -23,6 +25,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
   const [newDesc, setNewDesc] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [dueTime, setDueTime] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('General')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -71,6 +74,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
         description: newDesc.trim() || null,
         status: 'todo',
         due_date: isoDueDate,
+        category: selectedCategory,
       })
 
       if (insertError) throw insertError
@@ -79,6 +83,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
       setNewDesc('')
       setDueDate('')
       setDueTime('')
+      setSelectedCategory('General')
       onRefresh()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Error al crear la tarea'
@@ -88,9 +93,13 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
     }
   }
 
-  const handleToggleStatus = async (taskId: string, currentStatus: 'todo' | 'done' | 'ignored') => {
+  const handleToggleStatus = async (e: React.MouseEvent, taskId: string, currentStatus: 'todo' | 'done' | 'ignored') => {
     const nextStatus = currentStatus === 'todo' ? 'done' : 'todo'
     const completedAt = nextStatus === 'done' ? new Date().toISOString() : null
+
+    if (nextStatus === 'done') {
+      triggerConfetti(e.clientX, e.clientY)
+    }
 
     try {
       const { error: updateError } = await supabase
@@ -102,6 +111,24 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
       onRefresh()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Error al actualizar el estado'
+      setError(errorMsg)
+    }
+  }
+
+  const handleSnooze = async (taskId: string, currentDueDate: string | null | undefined) => {
+    try {
+      const baseDate = currentDueDate ? new Date(currentDueDate) : new Date()
+      const newDueDate = new Date(baseDate.getTime() + 24 * 60 * 60 * 1000).toISOString()
+
+      const { error: updateError } = await supabase
+        .from('tasks')
+        .update({ due_date: newDueDate })
+        .eq('id', taskId)
+
+      if (updateError) throw updateError
+      onRefresh()
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Error al posponer la tarea'
       setError(errorMsg)
     }
   }
@@ -181,23 +208,38 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
           aria-label="Descripción de la tarea"
           title="Descripción (opcional)"
         />
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="flex-1 min-w-[90px] px-2 py-2 bg-slate-950/40 border border-white/5 rounded-md text-xs text-slate-400 focus:outline-none focus:border-task-purple focus:ring-1 focus:ring-task-purple"
+            aria-label="Categoría"
+            title="Categoría"
+          >
+            <option value="General">General</option>
+            <option value="Trabajo">Trabajo</option>
+            <option value="Estudio">Estudio</option>
+            <option value="Hogar">Hogar</option>
+            <option value="Salud">Salud</option>
+          </select>
           <input
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="flex-1 min-w-[100px] px-2 py-2 bg-slate-950/40 border border-white/5 rounded-md text-xs text-slate-400 focus:outline-none focus:border-task-purple focus:ring-1 focus:ring-task-purple"
+            className="flex-1 min-w-[110px] px-2 py-2 bg-slate-950/40 border border-white/5 rounded-md text-xs text-slate-400 focus:outline-none focus:border-task-purple focus:ring-1 focus:ring-task-purple"
             aria-label="Fecha límite"
             title="Fecha límite"
-          />
+          >
+          </input>
           <input
             type="time"
             value={dueTime}
             onChange={(e) => setDueTime(e.target.value)}
-            className="flex-1 min-w-[70px] px-2 py-2 bg-slate-950/40 border border-white/5 rounded-md text-xs text-slate-400 focus:outline-none focus:border-task-purple focus:ring-1 focus:ring-task-purple"
+            className="flex-1 min-w-[80px] px-2 py-2 bg-slate-950/40 border border-white/5 rounded-md text-xs text-slate-400 focus:outline-none focus:border-task-purple focus:ring-1 focus:ring-task-purple"
             aria-label="Hora límite"
             title="Hora límite"
-          />
+          >
+          </input>
           <button
             type="submit"
             disabled={loading}
@@ -210,9 +252,17 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
       </form>
 
       {/* Task List */}
-      <div className="flex-1 overflow-y-auto space-y-2 max-h-[300px] pr-1">
+      <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-1">
         {tasks.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-8">No hay tareas creadas para hoy.</p>
+          <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-task-purple/10 border border-task-purple/20 flex items-center justify-center">
+              <Check className="h-6 w-6 text-task-purple opacity-60" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400">Sin tareas para hoy</p>
+              <p className="text-[10px] text-slate-600 mt-1">Creá tu primera tarea arriba ↑</p>
+            </div>
+          </div>
         ) : (
           tasks.map((task) => (
             <div
@@ -227,7 +277,7 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
             >
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <button
-                  onClick={() => handleToggleStatus(task.id, task.status)}
+                  onClick={(e) => handleToggleStatus(e, task.id, task.status)}
                   className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer ${
                     task.status === 'done'
                       ? 'bg-task-purple border-task-purple text-white scale-105 shadow-sm shadow-task-purple/20 animate-check-glow-purple'
@@ -246,9 +296,16 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
                   >
                     {task.title}
                   </p>
-                  {task.description && (
-                    <p className="text-[10px] text-slate-450 truncate mt-0.5">{task.description}</p>
-                  )}
+                  <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    {task.category && task.category !== 'General' && (
+                      <span className="text-[8px] px-1 py-0.2 bg-task-purple/15 border border-task-purple/25 text-violet-300 rounded font-bold uppercase shrink-0">
+                        {task.category}
+                      </span>
+                    )}
+                    {task.description && (
+                      <p className="text-[10px] text-slate-450 truncate">{task.description}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -258,6 +315,15 @@ export default function TaskList({ tasks, onRefresh }: TaskListProps) {
                     <Calendar className="h-2.5 w-2.5 text-task-purple" />
                     {formatTaskDate(task.due_date)}
                   </span>
+                )}
+                {task.status !== 'done' && (
+                  <button
+                    onClick={() => handleSnooze(task.id, task.due_date)}
+                    title="Posponer +24h"
+                    className="px-1.5 py-0.5 rounded bg-white/[0.02] border border-white/[0.05] text-[9px] text-slate-400 hover:text-violet-400 hover:border-task-purple/35 transition-colors cursor-pointer shrink-0"
+                  >
+                    +24h
+                  </button>
                 )}
                 <button
                   onClick={() => handleSetIgnored(task.id, task.status)}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useMemo, useCallback, useReducer } from 'react'
-import { Bot, Send, User, Loader2, Sparkles, X, Settings, ChevronDown, HelpCircle } from 'lucide-react'
+import { Bot, Send, User, Loader2, Sparkles, X, Settings, ChevronDown, HelpCircle, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
 interface Message {
@@ -9,6 +9,12 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  actionExecuted?: {
+    type: string
+    payload: any
+    success: boolean
+    message?: string
+  }
 }
 
 type AIProvider = 'gemini' | 'opencode'
@@ -19,11 +25,6 @@ interface ProviderConfig {
   models: { value: string; label: string }[]
 }
 
-// Auth user payload returned by the mock supabase-client's `auth.getUser()`.
-// Mirrors the shape declared in `src/lib/sqlite-db.ts` for the `auth` surface
-// of `MockSupabaseClient`. We type it locally rather than importing the
-// supabase mock type so this component stays decoupled from the mock's
-// internals.
 type AuthUserPayload = { user: { id: string; email: string } | null }
 
 const PROVIDERS: Record<AIProvider, ProviderConfig> = {
@@ -59,14 +60,15 @@ const WELCOME_MESSAGE: Message = {
 }
 
 function formatMarkdown(text: string) {
-  return text
+  // Strip <run_action>...</run_action> first
+  const clean = text.replace(/<run_action>[\s\S]*?(?:<\/run_action>|$)/g, '')
+  return clean
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\n/g, '<br />')
 }
 
-// Connection state FSM: unknown → checking → connected | disconnected.
-// useReducer keeps status + error message atomic.
+// Connection state FSM
 type ConnectionState =
   | { status: 'unknown' }
   | { status: 'checking' }
@@ -88,7 +90,14 @@ function connectionReducer(_s: ConnectionState, a: ConnectionAction): Connection
   }
 }
 
-export default function ChatBot() {
+interface ChatBotProps {
+  isFloating?: boolean
+  onExecuteAction?: (action: { type: string; [key: string]: any }) => void
+  onRefresh?: () => void
+}
+
+export default function ChatBot({ isFloating = false, onExecuteAction, onRefresh }: ChatBotProps) {
+  const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -101,10 +110,7 @@ export default function ChatBot() {
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
 
-  // Custom API keys state — lazy-init from localStorage so the seeding
-  // happens at mount instead of inside an effect. This is the React 19
-  // canonical pattern: useState(() => ...) runs the initializer once and
-  // avoids the set-state-in-effect cascade.
+  // Custom API keys state
   const [googleApiKey, setGoogleApiKey] = useState(() => {
     if (typeof window === 'undefined') return ''
     return localStorage.getItem('peso_google_api_key') || ''
@@ -115,7 +121,7 @@ export default function ChatBot() {
   })
   const [connectionState, dispatchConnection] = useReducer(connectionReducer, initialConnectionState)
 
-  // Telegram bot config state — same lazy-init pattern.
+  // Telegram bot config state
   const [telegramToken, setTelegramToken] = useState(() => {
     if (typeof window === 'undefined') return ''
     return localStorage.getItem('peso_telegram_bot_token') || ''
@@ -130,6 +136,7 @@ export default function ChatBot() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const supabase = useMemo(() => createClient(), [])
+  const todayStr = new Date().toLocaleDateString('sv-SE')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }: { data: AuthUserPayload }) => {
@@ -141,13 +148,7 @@ export default function ChatBot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Validate the connection. Returns a result instead of calling setState,
-  // so the effect and the button can both dispatch through the reducer
-  // without re-entering `react-hooks/set-state-in-effect`. Wrapped in
-  // useCallback so the auto-validate effect can list it as a dep without
-  // re-firing every render; the deps are exactly the values the call
-  // closes over, and the effect's own `lastValidatedProviderRef` guard
-  // keeps run conditions unchanged (re-validates only on provider switch).
+  // Validate the connection
   const validateConnection = useCallback(async (
     targetProvider = provider,
     customGoogle = googleApiKey,
@@ -173,11 +174,7 @@ export default function ChatBot() {
     return { valid: Boolean(data.valid), error: data.error as string | undefined }
   }, [provider, googleApiKey, opencodeApiKey])
 
-  // Auto-validate on provider switch. The useRef guard avoids the
-  // synchronous `dispatch({ type: 'validating' })` that would trip
-  // `react-hooks/set-state-in-effect`; the terminal dispatches live in
-  // the async `.then` / `.catch` callbacks, which the rule does not
-  // flag.
+  // Auto-validate on provider switch
   const lastValidatedProviderRef = useRef<AIProvider | null>(null)
   useEffect(() => {
     if (lastValidatedProviderRef.current === provider) return
@@ -197,10 +194,7 @@ export default function ChatBot() {
     }
   }, [provider, validateConnection])
 
-  // User-initiated re-validation from the "Probar Conexión" button. The
-  // synchronous `dispatch({ type: 'validating' })` is fine here — the
-  // `set-state-in-effect` rule only flags useEffect bodies, not event
-  // handlers.
+  // User-initiated re-validation
   const handleValidateConnection = () => {
     dispatchConnection({ type: 'validating' })
     validateConnection()
@@ -346,6 +340,178 @@ export default function ChatBot() {
           }
         }
       }
+
+      // Execute intercepted actions on stream completion
+      const tagRegex = /<run_action>([\s\S]*?)<\/run_action>/g
+      let match
+      let lastAction: any = null
+
+      while ((match = tagRegex.exec(accumulatedText)) !== null) {
+        try {
+          const actionJson = JSON.parse(match[1].trim())
+          lastAction = actionJson
+        } catch (e) {
+          console.error('Failed to parse action JSON:', match[1], e)
+        }
+      }
+
+      if (lastAction) {
+        let success = false
+        try {
+          if (lastAction.type === 'create_task') {
+            const { payload } = lastAction
+            const { error } = await supabase.from('tasks').insert({
+              user_id: userId,
+              title: payload.title,
+              priority: payload.priority || 'media',
+              category: payload.category || 'General',
+              status: 'todo'
+            })
+            if (error) throw error
+            success = true
+          } else if (lastAction.type === 'create_transaction') {
+            const { payload } = lastAction
+            const { error } = await supabase.from('transactions').insert({
+              user_id: userId,
+              amount: payload.amount,
+              description: payload.description,
+              category: payload.category || 'Otros',
+              type: payload.type || 'expense'
+            })
+            if (error) throw error
+            success = true
+          } else if (lastAction.type === 'toggle_habit') {
+            const { payload } = lastAction
+            const { data: existingLogs } = await supabase
+              .from('habit_logs')
+              .select('*')
+              .eq('habit_id', payload.habit_id)
+              .eq('log_date', payload.date)
+
+            if (existingLogs && existingLogs.length > 0) {
+              const { error } = await supabase
+                .from('habit_logs')
+                .delete()
+                .eq('habit_id', payload.habit_id)
+                .eq('log_date', payload.date)
+              if (error) throw error
+            } else {
+              const { error } = await supabase
+                .from('habit_logs')
+                .insert({
+                  user_id: userId,
+                  habit_id: payload.habit_id,
+                  log_date: payload.date
+                })
+              if (error) throw error
+            }
+            success = true
+          } else if (lastAction.type === 'log_diet') {
+            const { payload } = lastAction
+            const { data: existingEntries } = await supabase
+              .from('journal_entries')
+              .select('*')
+              .eq('entry_type', 'diet')
+              .eq('entry_date', todayStr)
+
+            if (existingEntries && existingEntries.length > 0) {
+              const existing = existingEntries[0]
+              const oldMetadata = existing.metadata || {}
+              const oldMacros = oldMetadata.macros || {}
+              const newMetadata = {
+                calories: (oldMetadata.calories || 0) + (payload.calories || 0),
+                macros: {
+                  protein: (oldMacros.protein || 0) + (payload.protein || 0),
+                  carbs: (oldMacros.carbs || 0) + (payload.carbs || 0),
+                  fat: (oldMacros.fat || 0) + (payload.fat || 0)
+                },
+                water: oldMetadata.water || 0,
+                weight: oldMetadata.weight || null
+              }
+              const mealDesc = `${payload.meal_type || 'comida'}: ${payload.calories} kcal`
+              const newContent = existing.content
+                ? `${existing.content}\n- ${mealDesc}`
+                : `- ${mealDesc}`
+
+              const { error } = await supabase
+                .from('journal_entries')
+                .update({
+                  content: newContent,
+                  metadata: newMetadata
+                })
+                .eq('id', existing.id)
+              if (error) throw error
+            } else {
+              const mealDesc = `${payload.meal_type || 'comida'}: ${payload.calories} kcal`
+              const newMetadata = {
+                calories: payload.calories || 0,
+                macros: {
+                  protein: payload.protein || 0,
+                  carbs: payload.carbs || 0,
+                  fat: payload.fat || 0
+                },
+                water: 0,
+                weight: null
+              }
+              const { error } = await supabase
+                .from('journal_entries')
+                .insert({
+                  user_id: userId,
+                  entry_type: 'diet',
+                  entry_date: todayStr,
+                  content: `- ${mealDesc}`,
+                  metadata: newMetadata
+                })
+              if (error) throw error
+            }
+            success = true
+          } else if (lastAction.type === 'navigate' || lastAction.type === 'open_modal') {
+            success = true
+          }
+
+          if (success) {
+            if (onExecuteAction) {
+              onExecuteAction(lastAction)
+            }
+            if (onRefresh) {
+              onRefresh()
+            }
+
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      actionExecuted: {
+                        type: lastAction.type,
+                        payload: lastAction.payload || lastAction,
+                        success: true
+                      }
+                    }
+                  : m
+              )
+            )
+          }
+        } catch (e: any) {
+          console.error('Error executing action:', e)
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    actionExecuted: {
+                      type: lastAction.type,
+                      payload: lastAction.payload || lastAction,
+                      success: false,
+                      message: e.message || 'Error en la base de datos'
+                    }
+                  }
+                : m
+            )
+          )
+        }
+      }
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido'
       setMessages((prev) =>
@@ -373,8 +539,25 @@ export default function ChatBot() {
 
   const currentModels = PROVIDERS[provider].models
 
+  // If floating mode is on and chat is closed, just render the bubble button
+  if (isFloating && !isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="h-14 w-14 rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 hover:from-violet-500 hover:to-indigo-600 text-white flex items-center justify-center shadow-[0_8px_30px_rgb(99,102,241,0.35)] hover:shadow-[0_8px_30px_rgb(99,102,241,0.55)] border border-violet-500/30 transition-all duration-300 hover:scale-105 cursor-pointer"
+        title="Preguntale a Pesito"
+      >
+        <Bot className="h-6 w-6 animate-pulse" />
+      </button>
+    )
+  }
+
+  const chatContainerClass = isFloating
+    ? "fixed bottom-24 right-6 w-96 max-w-[calc(100vw-2rem)] h-[550px] max-h-[80vh] flex flex-col z-50 glass-premium rounded-2xl shadow-2xl animate-fade-in"
+    : "glass-premium rounded-2xl shadow-xl flex flex-col h-[calc(100vh-10rem)] min-h-[600px]"
+
   return (
-    <div className="glass-premium rounded-2xl shadow-xl flex flex-col h-[calc(100vh-12rem)] max-h-[820px] min-h-[520px]">
+    <div className={chatContainerClass}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.04] shrink-0">
         <div className="flex items-center gap-3">
@@ -481,19 +664,29 @@ export default function ChatBot() {
           >
             <X className="h-3.5 w-3.5" />
           </button>
+
+          {isFloating && (
+            <button
+              onClick={() => setIsOpen(false)}
+              className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all cursor-pointer"
+              title="Minimizar chat"
+            >
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* ── Help / Guide Panel ── */}
       {showHelp && (
-        <div className="px-5 py-4 border-b border-white/[0.04] bg-slate-950/40 shrink-0 text-xs text-slate-300 space-y-4 max-h-[350px] overflow-y-auto scrollbar-thin">
+        <div className="px-5 py-4 border-b border-white/[0.04] bg-slate-950/40 shrink-0 text-xs text-slate-300 space-y-4 max-h-[300px] overflow-y-auto scrollbar-thin">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-foreground flex items-center gap-1.5 text-violet-300">
               <HelpCircle className="h-3.5 w-3.5" />
               Guía de interacciones con Pesito
             </h3>
-            <button 
-              onClick={() => setShowHelp(false)} 
+            <button
+              onClick={() => setShowHelp(false)}
               className="text-slate-500 hover:text-slate-300 p-0.5 rounded hover:bg-white/5"
             >
               <X className="h-3.5 w-3.5" />
@@ -541,7 +734,7 @@ export default function ChatBot() {
 
       {/* ── Provider Settings Panel ── */}
       {showSettings && (
-        <div className="px-5 py-4 border-b border-white/[0.04] bg-slate-950/40 shrink-0 space-y-4">
+        <div className="px-5 py-4 border-b border-white/[0.04] bg-slate-950/40 shrink-0 space-y-4 max-h-[300px] overflow-y-auto">
           <div>
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mb-2">Proveedor de IA</p>
             <div className="flex gap-2 flex-wrap">
@@ -645,11 +838,11 @@ export default function ChatBot() {
                 Conectar Webhook
               </button>
             </div>
-            
+
             {telegramSetupResult && (
               <p className={`text-[10px] mt-2 p-2 rounded border ${
-                telegramSetupStatus === 'success' 
-                  ? 'text-habit-green bg-habit-green/10 border-habit-green/15' 
+                telegramSetupStatus === 'success'
+                  ? 'text-habit-green bg-habit-green/10 border-habit-green/15'
                   : 'text-rose-400 bg-rose-500/10 border-rose-500/15'
               }`}>
                 {telegramSetupResult}
@@ -659,10 +852,10 @@ export default function ChatBot() {
             {telegramBotUsername && (
               <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
                 🤖 Bot conectado:{' '}
-                <a 
-                  href={`https://t.me/${telegramBotUsername}`} 
-                  target="_blank" 
-                  rel="noreferrer" 
+                <a
+                  href={`https://t.me/${telegramBotUsername}`}
+                  target="_blank"
+                  rel="noreferrer"
                   className="text-sky-400 hover:underline font-semibold"
                 >
                   @{telegramBotUsername}
@@ -686,25 +879,70 @@ export default function ChatBot() {
               </div>
             )}
 
-            <div
-              className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
-                msg.role === 'user'
-                  ? 'bg-task-purple/25 backdrop-blur-md border border-task-purple/35 text-slate-100 rounded-tr-sm shadow-[0_4px_12px_rgba(124,58,237,0.15)]'
-                  : 'bg-slate-900/45 backdrop-blur-md border border-white/[0.06] text-slate-200 rounded-tl-sm shadow-[0_4px_12px_rgba(255,255,255,0.02)]'
-              }`}
-            >
-              {msg.content === '' && isStreaming ? (
-                <span className="flex items-center gap-1">
-                  {[0, 150, 300].map((delay) => (
-                    <span
-                      key={delay}
-                      className="h-1.5 w-1.5 bg-violet-400 rounded-full animate-bounce"
-                      style={{ animationDelay: `${delay}ms` }}
-                    />
-                  ))}
-                </span>
-              ) : (
-                <span dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
+            <div className="max-w-[82%] flex flex-col gap-1.5">
+              <div
+                className={`rounded-2xl px-4 py-2.5 text-xs leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-task-purple/25 backdrop-blur-md border border-task-purple/35 text-slate-100 rounded-tr-sm shadow-[0_4px_12px_rgba(124,58,237,0.15)]'
+                    : 'bg-slate-900/45 backdrop-blur-md border border-white/[0.06] text-slate-200 rounded-tl-sm shadow-[0_4px_12px_rgba(255,255,255,0.02)]'
+                }`}
+              >
+                {msg.content === '' && isStreaming ? (
+                  <span className="flex items-center gap-1">
+                    {[0, 150, 300].map((delay) => (
+                      <span
+                        key={delay}
+                        className="h-1.5 w-1.5 bg-violet-400 rounded-full animate-bounce"
+                        style={{ animationDelay: `${delay}ms` }}
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <span dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
+                )}
+              </div>
+
+              {msg.actionExecuted && (
+                <div className={`p-3 rounded-xl border text-xs space-y-1 animate-fade-in ${
+                  msg.actionExecuted.success
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                    : 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                }`}>
+                  <div className="flex items-center gap-2 font-bold">
+                    <CheckCircle2 className={`h-4 w-4 shrink-0 ${msg.actionExecuted.success ? 'text-emerald-400' : 'text-rose-400'}`} />
+                    <span>
+                      {msg.actionExecuted.success
+                        ? 'Acción ejecutada correctamente'
+                        : 'Error al ejecutar acción'}
+                    </span>
+                  </div>
+                  <div className="pl-6 text-slate-300 space-y-0.5">
+                    {msg.actionExecuted.success ? (
+                      <>
+                        {msg.actionExecuted.type === 'create_task' && (
+                          <p>Tarea creada: <strong className="text-slate-100">{msg.actionExecuted.payload.title}</strong> (Prioridad: {msg.actionExecuted.payload.priority}, Categoría: {msg.actionExecuted.payload.category})</p>
+                        )}
+                        {msg.actionExecuted.type === 'create_transaction' && (
+                          <p>Transacción: <strong className="text-slate-100">{msg.actionExecuted.payload.description}</strong> por <strong className="text-slate-100">${msg.actionExecuted.payload.amount}</strong> ({msg.actionExecuted.payload.category})</p>
+                        )}
+                        {msg.actionExecuted.type === 'toggle_habit' && (
+                          <p>Hábito: ID <strong className="text-slate-100">{msg.actionExecuted.payload.habit_id}</strong> registrado para el {msg.actionExecuted.payload.date}</p>
+                        )}
+                        {msg.actionExecuted.type === 'log_diet' && (
+                          <p>Dieta: <strong className="text-slate-100">{msg.actionExecuted.payload.calories} kcal</strong> (Proteínas: {msg.actionExecuted.payload.protein}g, Carbohidratos: {msg.actionExecuted.payload.carbs}g, Grasas: {msg.actionExecuted.payload.fat}g)</p>
+                        )}
+                        {msg.actionExecuted.type === 'navigate' && (
+                          <p>Navegado a la sección: <strong className="text-slate-100">{msg.actionExecuted.payload.tab}</strong></p>
+                        )}
+                        {msg.actionExecuted.type === 'open_modal' && (
+                          <p>Modal abierto: <strong className="text-slate-100">{msg.actionExecuted.payload.modal}</strong></p>
+                        )}
+                      </>
+                    ) : (
+                      <p>{msg.actionExecuted.message}</p>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -720,6 +958,29 @@ export default function ChatBot() {
 
       {/* ── Input Area ── */}
       <div className="px-4 py-3 border-t border-white/[0.04] shrink-0">
+        {/* Suggestion Chips */}
+        <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-none shrink-0 mb-1.5">
+          {[
+            { label: '📝 Crear tarea', template: 'Crear una tarea para: ' },
+            { label: '💸 Registrar gasto', template: 'Registrar un gasto de $' },
+            { label: '🥗 Registrar comida', template: 'Registrar que comí: ' },
+            { label: '🔄 Completar hábito', template: 'Marcar como completado el hábito: ' },
+            { label: '📅 Cerrar día', template: 'Quiero cerrar mi día' },
+            { label: '📊 Ver finanzas', template: 'Mostrame mis finanzas' }
+          ].map((chip) => (
+            <button
+              key={chip.label}
+              onClick={() => {
+                setInput(chip.template)
+                inputRef.current?.focus()
+              }}
+              className="px-2.5 py-1 text-[10px] rounded-full bg-white/[0.02] border border-white/[0.05] hover:bg-task-purple/10 hover:border-task-purple/30 text-slate-350 hover:text-violet-300 transition-all cursor-pointer whitespace-nowrap"
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex gap-2 items-center">
           <input
             ref={inputRef}

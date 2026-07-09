@@ -10,7 +10,7 @@ interface DietLogProps {
   onRefresh: () => void
 }
 
-const FREQUENT_FOODS = [
+const DEFAULT_FREQUENT_FOODS = [
   { name: 'Huevo duro (1 u)', calories: 78, protein: 6, carbs: 0.6, fat: 5 },
   { name: 'Pechuga de pollo (150g)', calories: 250, protein: 46, carbs: 0, fat: 5 },
   { name: 'Manzana mediana', calories: 95, protein: 0.5, carbs: 25, fat: 0.3 },
@@ -19,7 +19,6 @@ const FREQUENT_FOODS = [
   { name: 'Arroz cocido (150g)', calories: 200, protein: 4, carbs: 44, fat: 0.4 },
 ]
 
-// Macro Goals
 const GOALS = {
   calories: 2000,
   protein: 130,
@@ -28,10 +27,6 @@ const GOALS = {
   water: 2000,
 }
 
-// Internal form — owns the editable state. The parent DietLog remounts
-// this component (via the `key` prop below) whenever today's persisted
-// entry changes, which resets the form to match the new source of truth
-// without an effect-based setState cascade.
 function DietLogForm({
   entry,
   todayStr,
@@ -46,10 +41,29 @@ function DietLogForm({
   const [protein, setProtein] = useState<number>(entry?.metadata?.macros?.protein || 0)
   const [carbs, setCarbs] = useState<number>(entry?.metadata?.macros?.carbs || 0)
   const [fat, setFat] = useState<number>(entry?.metadata?.macros?.fat || 0)
-  const [water, setWater] = useState<number>(entry?.metadata?.water || 0) // in ml
+  const [water, setWater] = useState<number>(entry?.metadata?.water || 0)
   const [weight, setWeight] = useState<string>(
     entry?.metadata?.weight ? String(entry.metadata.weight) : ''
-  ) // weight in kg as string
+  )
+
+  // Customizable meal presets state
+  const [mealPresets, setMealPresets] = useState<Array<{ name: string; calories: number; protein: number; carbs: number; fat: number }>>(() => {
+    if (typeof window === 'undefined') return DEFAULT_FREQUENT_FOODS
+    try {
+      const saved = localStorage.getItem('pesos_meal_presets')
+      return saved ? JSON.parse(saved) : DEFAULT_FREQUENT_FOODS
+    } catch {
+      return DEFAULT_FREQUENT_FOODS
+    }
+  })
+
+  // Preset builder state
+  const [presetName, setPresetName] = useState('')
+  const [presetCal, setPresetCal] = useState(100)
+  const [presetProt, setPresetProt] = useState(10)
+  const [presetCarb, setPresetCarb] = useState(10)
+  const [presetFat, setPresetFat] = useState(5)
+  const [showPresetForm, setShowPresetForm] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
@@ -65,17 +79,40 @@ function DietLogForm({
     setWater(0)
   }
 
-  const quickAddFood = (food: typeof FREQUENT_FOODS[0]) => {
+  const quickAddFood = (food: { name: string; calories: number; protein: number; carbs: number; fat: number }) => {
     setCalories((c) => c + food.calories)
     setProtein((p) => p + food.protein)
     setCarbs((c) => c + food.carbs)
     setFat((f) => f + food.fat)
 
-    // Append to description log
     setContent((prev) => {
       const trimmed = prev.trim()
       return trimmed ? `${trimmed}\n- ${food.name}` : `- ${food.name}`
     })
+  }
+
+  const handleCreatePreset = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!presetName.trim()) return
+
+    const newPreset = {
+      name: presetName.trim(),
+      calories: Number(presetCal) || 0,
+      protein: Number(presetProt) || 0,
+      carbs: Number(presetCarb) || 0,
+      fat: Number(presetFat) || 0,
+    }
+
+    const updated = [...mealPresets, newPreset]
+    setMealPresets(updated)
+    localStorage.setItem('pesos_meal_presets', JSON.stringify(updated))
+
+    setPresetName('')
+    setPresetCal(100)
+    setPresetProt(10)
+    setPresetCarb(10)
+    setPresetFat(5)
+    setShowPresetForm(false)
   }
 
   const handleSave = async () => {
@@ -99,7 +136,6 @@ function DietLogForm({
       }
 
       if (entry) {
-        // Update existing entry
         const { error: updateError } = await supabase
           .from('journal_entries')
           .update({
@@ -110,7 +146,6 @@ function DietLogForm({
 
         if (updateError) throw updateError
       } else {
-        // Create new entry
         const { error: insertError } = await supabase.from('journal_entries').insert({
           user_id: user.id,
           content: content.trim(),
@@ -133,12 +168,23 @@ function DietLogForm({
     }
   }
 
-  // Percentages for Progress Bars
+  // Format date in Spanish for display (e.g. '9 de julio 2026')
+  const displayDate = new Date(todayStr + 'T12:00:00').toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+
   const calPct = Math.min((calories / GOALS.calories) * 100, 100)
   const protPct = Math.min((protein / GOALS.protein) * 100, 100)
   const carbPct = Math.min((carbs / GOALS.carbs) * 100, 100)
   const fatPct = Math.min((fat / GOALS.fat) * 100, 100)
   const waterPct = Math.min((water / GOALS.water) * 100, 100)
+
+  // Color Warnings Shift Logic (sky-400 within budget, amber-500 exceeding budget)
+  const protColorClass = protein > GOALS.protein ? 'from-amber-500 to-amber-600 shadow-[0_0_6px_rgba(245,158,11,0.5)]' : 'from-sky-400 to-sky-500'
+  const carbColorClass = carbs > GOALS.carbs ? 'from-amber-500 to-amber-600 shadow-[0_0_6px_rgba(245,158,11,0.5)]' : 'from-sky-400 to-sky-500'
+  const fatColorClass = fat > GOALS.fat ? 'from-amber-500 to-amber-600 shadow-[0_0_6px_rgba(245,158,11,0.5)]' : 'from-sky-400 to-sky-500'
 
   return (
     <div className="glass-premium rounded-2xl p-6 shadow-xl h-full flex flex-col justify-between space-y-6">
@@ -149,7 +195,9 @@ function DietLogForm({
             <Utensils className="h-4 w-4 text-emerald-400 stroke-[2.5px]" />
             Registro de Alimentación & Dieta
           </h2>
-          <span className="text-[10px] opacity-40 font-mono">{todayStr}</span>
+          <span className="text-[10px] opacity-40 font-mono">
+            {new Date(todayStr + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
         </div>
 
         {error && (
@@ -171,54 +219,91 @@ function DietLogForm({
                 inputMode="decimal"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
-                placeholder="00.0"
+                placeholder="0.0"
                 className="w-full bg-slate-900/50 border border-white/10 rounded-lg p-2 text-center text-sm font-mono font-bold text-slate-200 focus:outline-none focus:border-emerald-400"
               />
               <span className="text-xs text-slate-400 font-semibold font-mono">kg</span>
             </div>
           </div>
 
-          {/* Hydration Widget */}
-          <div className="md:col-span-2 bg-slate-950/30 border border-white/[0.04] p-4 rounded-xl space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <Droplet className="h-3.5 w-3.5 text-sky-400 fill-sky-400/25" /> Hidratación
-              </label>
-              <div className="flex gap-2 items-center">
-                <span className="text-[10px] font-bold font-mono text-sky-400">{water}ml / {GOALS.water}ml</span>
+          {/* Hydration Widget with Animated SVG Cup */}
+          <div className="md:col-span-2 bg-slate-950/30 border border-white/[0.04] p-4 rounded-xl flex gap-4">
+            <div className="flex-1 space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Droplet className="h-3.5 w-3.5 text-sky-400 fill-sky-400/25" /> Hidratación
+                </label>
+                <div className="flex gap-2 items-center">
+                  <span className="text-[10px] font-bold font-mono text-sky-400">{water}ml / {GOALS.water}ml</span>
+                  <button
+                    type="button"
+                    onClick={resetWater}
+                    className="text-slate-600 hover:text-slate-400 transition-colors cursor-pointer"
+                    title="Reiniciar agua"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="h-2 rounded-full bg-slate-850 overflow-hidden relative border border-white/[0.04]">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.5)] transition-all duration-500 ease-out"
+                  style={{ width: `${waterPct}%` }}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
                 <button
                   type="button"
-                  onClick={resetWater}
-                  className="text-slate-600 hover:text-slate-400 transition-colors"
-                  title="Reiniciar agua"
+                  onClick={() => addWater(250)}
+                  className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 btn-tactile transition-colors cursor-pointer"
                 >
-                  <RefreshCw className="h-3 w-3" />
+                  <Plus className="h-2.5 w-2.5" /> 250ml
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addWater(500)}
+                  className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 btn-tactile transition-colors cursor-pointer"
+                >
+                  <Plus className="h-2.5 w-2.5" /> 500ml
                 </button>
               </div>
             </div>
-            
-            <div className="h-2 rounded-full bg-slate-850 overflow-hidden relative border border-white/[0.04]">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-sky-400 to-blue-500 shadow-[0_0_8px_rgba(56,189,248,0.5)] transition-all duration-500 ease-out"
-                style={{ width: `${waterPct}%` }}
-              />
-            </div>
 
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => addWater(250)}
-                className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 btn-tactile transition-colors"
-              >
-                <Plus className="h-2.5 w-2.5" /> 250ml
-              </button>
-              <button
-                type="button"
-                onClick={() => addWater(500)}
-                className="flex-1 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 text-[9px] font-bold rounded-lg border border-sky-500/15 flex items-center justify-center gap-0.5 btn-tactile transition-colors"
-              >
-                <Plus className="h-2.5 w-2.5" /> 500ml
-              </button>
+            {/* Animated SVG Cup */}
+            <div className="flex justify-center items-center px-2 shrink-0">
+              <svg width="45" height="60" viewBox="0 0 60 80" className="drop-shadow-[0_4px_10px_rgba(56,189,248,0.2)]">
+                <defs>
+                  <clipPath id="cup-clip">
+                    <path d="M 12 10 L 18 70 A 4 4 0 0 0 22 74 L 38 74 A 4 4 0 0 0 42 70 L 48 10 Z" />
+                  </clipPath>
+                  <linearGradient id="water-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" />
+                    <stop offset="100%" stopColor="#2563eb" />
+                  </linearGradient>
+                </defs>
+                <g clipPath="url(#cup-clip)">
+                  <rect x="0" y="0" width="60" height="80" fill="rgba(255, 255, 255, 0.05)" />
+                  <rect
+                    x="0"
+                    y={80 - (80 * waterPct) / 100}
+                    width="60"
+                    height={(80 * waterPct) / 100}
+                    fill="url(#water-gradient)"
+                    className="transition-all duration-700 ease-out"
+                  />
+                </g>
+                <path
+                  d="M 12 10 L 18 70 A 4 4 0 0 0 22 74 L 38 74 A 4 4 0 0 0 42 70 L 48 10"
+                  fill="none"
+                  stroke="rgba(255, 255, 255, 0.25)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <ellipse cx="30" cy="10" rx="18" ry="3.5" fill="rgba(255, 255, 255, 0.05)" stroke="rgba(255, 255, 255, 0.2)" strokeWidth="1.5" />
+              </svg>
             </div>
           </div>
         </div>
@@ -272,7 +357,7 @@ function DietLogForm({
             </div>
           </div>
 
-          {/* Goals Progress visual indicators */}
+          {/* Goals Progress visual indicators with color warning shift */}
           <div className="space-y-2 bg-slate-950/20 p-3 rounded-xl border border-white/[0.03]">
             <div className="space-y-1">
               <div className="flex justify-between text-[9px] text-slate-500 font-bold font-mono">
@@ -280,7 +365,7 @@ function DietLogForm({
                 <span>{calPct.toFixed(0)}%</span>
               </div>
               <div className="h-1.5 bg-slate-850 rounded-full overflow-hidden border border-white/[0.02]">
-                <div className="h-full bg-gradient-to-r from-emerald-400 to-green-500 shadow-[0_0_6px_rgba(16,185,129,0.5)] transition-all duration-300" style={{ width: `${calPct}%` }} />
+                <div className={`h-full transition-all duration-300 ${calories > GOALS.calories ? 'bg-gradient-to-r from-amber-500 to-amber-600 shadow-[0_0_6px_rgba(245,158,11,0.5)]' : 'bg-gradient-to-r from-emerald-400 to-green-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]'}`} style={{ width: `${calPct}%` }} />
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3 pt-1">
@@ -290,7 +375,7 @@ function DietLogForm({
                   <span>{protPct.toFixed(0)}%</span>
                 </div>
                 <div className="h-1 bg-slate-850 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-rose-400 to-red-500 transition-all duration-300" style={{ width: `${protPct}%` }} />
+                  <div className={`h-full transition-all duration-300 ${protColorClass}`} style={{ width: `${protPct}%` }} />
                 </div>
               </div>
               <div className="space-y-0.5">
@@ -299,7 +384,7 @@ function DietLogForm({
                   <span>{carbPct.toFixed(0)}%</span>
                 </div>
                 <div className="h-1 bg-slate-850 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-500 transition-all duration-300" style={{ width: `${carbPct}%` }} />
+                  <div className={`h-full transition-all duration-300 ${carbColorClass}`} style={{ width: `${carbPct}%` }} />
                 </div>
               </div>
               <div className="space-y-0.5">
@@ -308,25 +393,96 @@ function DietLogForm({
                   <span>{fatPct.toFixed(0)}%</span>
                 </div>
                 <div className="h-1 bg-slate-850 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-sky-400 to-blue-500 transition-all duration-300" style={{ width: `${fatPct}%` }} />
+                  <div className={`h-full transition-all duration-300 ${fatColorClass}`} style={{ width: `${fatPct}%` }} />
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quick Add Preset Foods */}
+        {/* Customizable Presets Section */}
         <div className="space-y-2">
-          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-            Añadir alimento frecuente
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-            {FREQUENT_FOODS.map((food) => (
+          <div className="flex justify-between items-center">
+            <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              Añadir alimento frecuente
+            </label>
+            <button
+              onClick={() => setShowPresetForm(!showPresetForm)}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-md border transition-all cursor-pointer ${
+                showPresetForm
+                  ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                  : 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300'
+              }`}
+            >
+              {showPresetForm ? '✕ Cancelar' : '+ Crear preset'}
+            </button>
+          </div>
+
+          {/* Preset Builder Form */}
+          {showPresetForm && (
+            <form onSubmit={handleCreatePreset} className="bg-slate-950/40 border border-white/5 rounded-xl p-3 space-y-2.5 animate-fade-in">
+              <input
+                type="text"
+                placeholder="Nombre del alimento..."
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                required
+                className="w-full px-2.5 py-1.5 bg-slate-900 border border-white/10 rounded-md text-xs text-foreground focus:outline-none focus:border-emerald-500"
+              />
+              <div className="grid grid-cols-4 gap-2">
+                <div className="space-y-1 text-center">
+                  <span className="text-[8px] text-slate-500 font-bold font-mono">Kcal</span>
+                  <input
+                    type="number"
+                    value={presetCal}
+                    onChange={(e) => setPresetCal(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-md p-1 text-center text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1 text-center">
+                  <span className="text-[8px] text-slate-500 font-bold font-mono">Prot (g)</span>
+                  <input
+                    type="number"
+                    value={presetProt}
+                    onChange={(e) => setPresetProt(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-md p-1 text-center text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1 text-center">
+                  <span className="text-[8px] text-slate-500 font-bold font-mono">Carb (g)</span>
+                  <input
+                    type="number"
+                    value={presetCarb}
+                    onChange={(e) => setPresetCarb(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-md p-1 text-center text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1 text-center">
+                  <span className="text-[8px] text-slate-500 font-bold font-mono">Grasa (g)</span>
+                  <input
+                    type="number"
+                    value={presetFat}
+                    onChange={(e) => setPresetFat(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full bg-slate-900 border border-white/10 rounded-md p-1 text-center text-xs font-mono"
+                  />
+                </div>
+              </div>
               <button
-                key={food.name}
+                type="submit"
+                className="w-full py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-bold rounded-md border border-emerald-500/25 transition-colors cursor-pointer"
+              >
+                Guardar Preset
+              </button>
+            </form>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto pr-0.5 scrollbar-thin">
+            {mealPresets.map((food, idx) => (
+              <button
+                key={`${food.name}-${idx}`}
                 type="button"
                 onClick={() => quickAddFood(food)}
-                className="p-2 text-left rounded-lg bg-slate-900/40 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-100 flex flex-col justify-between gap-1 btn-tactile transition-all group"
+                className="p-2 text-left rounded-lg bg-slate-900/40 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-100 flex flex-col justify-between gap-1 btn-tactile transition-all group cursor-pointer"
               >
                 <span className="text-[10px] font-semibold text-slate-300 group-hover:text-slate-100 truncate w-full">
                   {food.name}
@@ -366,7 +522,7 @@ function DietLogForm({
             type="button"
             onClick={handleSave}
             disabled={loading}
-            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-emerald-400/20 shadow-lg shadow-emerald-600/10 flex items-center gap-1.5 btn-tactile transition-all"
+            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-emerald-400/20 shadow-lg shadow-emerald-600/10 flex items-center gap-1.5 btn-tactile transition-all cursor-pointer"
           >
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Guardar dieta diaria
@@ -378,14 +534,10 @@ function DietLogForm({
 }
 
 export default function DietLog({ entries, onRefresh }: DietLogProps) {
-  const todayStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
+  const todayStr = new Date().toLocaleDateString('sv-SE')
 
-  // Filter entries to only get diet logs
   const dietEntries = entries.filter((e) => e.entry_type === 'diet')
   const todayEntry = dietEntries.find((e) => e.entry_date === todayStr)
 
-  // The `key` remounts DietLogForm whenever today's entry identity
-  // changes, so the form's state is reset from the latest entry without
-  // an effect-based setState cascade.
   return <DietLogForm key={todayEntry?.id ?? 'new'} entry={todayEntry} todayStr={todayStr} onSaved={onRefresh} />
 }

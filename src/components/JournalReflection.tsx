@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { BookOpen, Save, Check, AlertTriangle, Loader2, Tag, Smile, History } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { BookOpen, Save, Check, AlertTriangle, Loader2, Tag, Smile, History, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
 export interface JournalEntry {
@@ -18,8 +18,8 @@ export interface JournalEntry {
       carbs?: number
       fat?: number
     }
-    water?: number // in ml
-    weight?: number // in kg
+    water?: number
+    weight?: number
   }
 }
 
@@ -38,10 +38,16 @@ const MOOD_OPTIONS = [
 
 const DEFAULT_TAGS = ['Personal', 'Trabajo', 'Salud', 'Metas', 'Aprendizaje', 'Relaciones']
 
-// Internal editor — owns the editable state. The parent JournalReflection
-// remounts this component (via the `key` prop below) whenever today's
-// persisted entry changes, which resets the form to match the new source
-// of truth without an effect-based setState cascade.
+const PROMPT_SUGGESTIONS = [
+  "¿Qué aprendiste hoy sobre vos mismo?",
+  "¿Qué te frustró hoy y cómo podés encararlo mejor mañana?",
+  "¿Por qué tres cosas específicas estás agradecido hoy?",
+  "¿Qué pequeño paso diste hoy hacia tus objetivos a largo plazo?",
+  "¿Cómo te cuidaste física y mentalmente hoy?",
+  "¿Hubo algún momento de hoy que te haya hecho sonreír?",
+  "Si pudieras cambiar una sola decisión de hoy, ¿cuál sería?"
+]
+
 function JournalReflectionEditor({
   entry,
   todayStr,
@@ -57,6 +63,7 @@ function JournalReflectionEditor({
   const [loading, setLoading] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPrompts, setShowPrompts] = useState(false)
 
   const supabase = createClient()
 
@@ -83,7 +90,6 @@ function JournalReflectionEditor({
       }
 
       if (entry) {
-        // Update existing entry
         const { error: updateError } = await supabase
           .from('journal_entries')
           .update({
@@ -94,7 +100,6 @@ function JournalReflectionEditor({
 
         if (updateError) throw updateError
       } else {
-        // Create new entry
         const { error: insertError } = await supabase.from('journal_entries').insert({
           user_id: user.id,
           content: content.trim(),
@@ -125,7 +130,16 @@ function JournalReflectionEditor({
           <BookOpen className="h-4 w-4 text-indigo-400 stroke-[2.5px]" />
           Bitácora de Reflexión
         </h2>
-        <span className="text-[10px] opacity-40 font-mono">{todayStr}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPrompts(true)}
+            className="text-[10px] text-indigo-300 hover:text-indigo-200 font-bold px-2.5 py-1 rounded-md bg-indigo-500/15 border border-indigo-500/30 hover:bg-indigo-500/25 hover:border-indigo-500/50 shadow-[0_0_8px_rgba(99,102,241,0.2)] transition-all cursor-pointer"
+          >
+            ✨ Sugerencias
+          </button>
+          <span className="text-[10px] opacity-40 font-mono">{todayStr}</span>
+        </div>
       </div>
 
       {error && (
@@ -146,7 +160,7 @@ function JournalReflectionEditor({
               key={opt.label}
               type="button"
               onClick={() => setSelectedMood(opt.emoji)}
-              className={`flex-1 py-1.5 rounded-lg border text-base btn-tactile transition-all duration-200 ${
+              className={`flex-1 py-1.5 rounded-lg border text-base btn-tactile transition-all duration-200 cursor-pointer ${
                 selectedMood === opt.emoji
                   ? 'bg-indigo-500/25 border-indigo-500/80 text-white scale-105 shadow-[0_0_12px_rgba(99,102,241,0.5)] ring-1 ring-indigo-500/45'
                   : 'bg-slate-900/40 border-white/[0.05] text-slate-400 hover:bg-slate-900/60 hover:text-slate-200'
@@ -172,7 +186,7 @@ function JournalReflectionEditor({
                 key={tag}
                 type="button"
                 onClick={() => handleTagToggle(tag)}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold btn-tactile transition-all duration-200 ${
+                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold btn-tactile transition-all duration-200 cursor-pointer ${
                   isSelected
                     ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 shadow-[0_0_8px_rgba(99,102,241,0.3)]'
                     : 'bg-slate-900/40 text-slate-400 border border-white/[0.04] hover:bg-slate-900/70 hover:text-slate-300'
@@ -209,34 +223,88 @@ function JournalReflectionEditor({
           type="button"
           onClick={handleSave}
           disabled={loading || !content.trim()}
-          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-indigo-400/20 shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 btn-tactile transition-all"
+          className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg border border-indigo-400/20 shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 btn-tactile transition-all cursor-pointer"
         >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
           Guardar reflexión
         </button>
       </div>
+
+      {/* Prompts Drawer */}
+      {showPrompts && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-start animate-fade-in">
+          <div className="w-80 max-w-full h-full bg-slate-900 border-r border-white/10 p-5 flex flex-col shadow-2xl relative animate-slide-in-left">
+            <button
+              onClick={() => setShowPrompts(false)}
+              className="absolute top-5 right-5 p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-4 mt-2">
+              Ideas para escribir hoy
+            </h3>
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin">
+              {PROMPT_SUGGESTIONS.map((prompt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setContent((prev) => (prev ? `${prev}\n\n* ${prompt}` : `* ${prompt}`))
+                    setShowPrompts(false)
+                  }}
+                  className="w-full text-left p-3 rounded-lg bg-slate-950/40 hover:bg-indigo-950/20 border border-white/5 hover:border-indigo-500/30 text-slate-305 hover:text-slate-100 text-xs leading-normal transition-all cursor-pointer"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function JournalReflection({ entries, onRefresh }: JournalReflectionProps) {
-  const todayStr = new Date().toLocaleDateString('sv-SE') // YYYY-MM-DD
-
-  // Historical view state lives at the parent level so the modal is not
-  // torn down when the editor remounts on entry change.
+  const todayStr = new Date().toLocaleDateString('sv-SE')
   const [viewingPastEntry, setViewingPastEntry] = useState<JournalEntry | null>(null)
 
-  // Filter entries to only get journal reflections
   const journalEntries = entries.filter((e) => e.entry_type === 'journal')
   const todayEntry = journalEntries.find((e) => e.entry_date === todayStr)
   const pastEntries = journalEntries.filter((e) => e.entry_date !== todayStr)
 
+  // Map mood emojis to numeric levels for sparkline
+  const moodValueMap: Record<string, number> = {
+    '😢': 1,
+    '😐': 2,
+    '🙂': 3,
+    '😄': 4,
+    '🤩': 5,
+  }
+
+  // Get last 10 journal reflections with a recorded mood
+  const last10EntriesWithMood = useMemo(() => {
+    return journalEntries
+      .filter((e) => e.metadata?.mood)
+      .slice(0, 10)
+      .reverse()
+  }, [journalEntries])
+
+  // Generate polyline points for the sparkline chart
+  const sparklinePoints = useMemo(() => {
+    if (last10EntriesWithMood.length < 2) return ''
+    return last10EntriesWithMood
+      .map((entry, index) => {
+        const moodVal = moodValueMap[entry.metadata?.mood || '😐'] || 2
+        const x = (index / (last10EntriesWithMood.length - 1)) * 100
+        const y = 30 - ((moodVal - 1) / 4) * 20 - 5
+        return `${x},${y}`
+      })
+      .join(' ')
+  }, [last10EntriesWithMood])
+
   return (
     <div className="glass-premium rounded-2xl p-5 shadow-xl h-full flex flex-col justify-between">
       <div className="space-y-4">
-        {/* The `key` remounts the editor whenever today's entry identity
-            changes, so the form's state is reset from the latest entry
-            without an effect-based setState cascade. */}
         <JournalReflectionEditor
           key={todayEntry?.id ?? 'new'}
           entry={todayEntry}
@@ -246,16 +314,60 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
 
         {/* Historial Section */}
         {pastEntries.length > 0 && (
-          <div className="pt-3 border-t border-white/[0.04] space-y-2">
-            <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
-              <History className="h-3 w-3" /> Historial de reflexiones
-            </h3>
-            <div className="max-h-24 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-white/10">
+          <div className="pt-4 border-t border-white/[0.04] space-y-3.5">
+            <div className="flex items-center justify-between gap-4">
+              <h3 className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <History className="h-3 w-3" /> Historial de reflexiones
+              </h3>
+
+              {/* Mood sparkline trend */}
+              {last10EntriesWithMood.length > 0 && (
+                <div className="flex items-center gap-2 bg-slate-950/30 px-2 py-1 rounded border border-white/[0.03]">
+                  <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider font-mono">
+                    Ánimo (últimas 10)
+                  </span>
+                  <svg className="w-16 h-6 text-indigo-400 overflow-visible" viewBox="0 0 100 30">
+                    {last10EntriesWithMood.length > 1 ? (
+                      <>
+                        <polyline
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          points={sparklinePoints}
+                        />
+                        {last10EntriesWithMood.map((entry, index) => {
+                          const moodVal = moodValueMap[entry.metadata?.mood || '😐'] || 2
+                          const x = (index / (last10EntriesWithMood.length - 1)) * 100
+                          const y = 30 - ((moodVal - 1) / 4) * 20 - 5
+                          return (
+                            <circle
+                              key={entry.id}
+                              cx={x}
+                              cy={y}
+                              r="2.5"
+                              className="fill-indigo-500 stroke-slate-900 stroke-[1px] hover:scale-150 transition-all cursor-pointer"
+                            >
+                              <title>{`${entry.entry_date}: ${entry.metadata?.mood}`}</title>
+                            </circle>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <line x1="0" y1="15" x2="100" y2="15" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2,2" />
+                    )}
+                  </svg>
+                </div>
+              )}
+            </div>
+
+            <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-white/10">
               {pastEntries.slice(0, 5).map((entry) => (
                 <button
                   key={entry.id}
                   onClick={() => setViewingPastEntry(entry)}
-                  className="w-full text-left p-2 rounded bg-slate-950/20 hover:bg-slate-950/40 border border-white/[0.03] flex items-center justify-between gap-2 transition-colors group"
+                  className="w-full text-left p-2 rounded bg-slate-950/20 hover:bg-slate-950/40 border border-white/[0.03] flex items-center justify-between gap-2 transition-colors group cursor-pointer"
                 >
                   <div className="truncate flex-1">
                     <p className="text-[11px] text-slate-300 truncate group-hover:text-slate-100 transition-colors">
@@ -291,7 +403,7 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
                 </h3>
                 <div className="flex gap-2 items-center mt-1.5">
                   {viewingPastEntry.metadata?.mood && (
-                    <span className="text-xs bg-white/[0.04] px-2 py-0.5 rounded-full text-slate-300 flex items-center gap-1 font-medium">
+                    <span className="text-xs bg-white/[0.04] px-2 py-0.5 rounded-full text-slate-305 flex items-center gap-1 font-medium">
                       Mood: {viewingPastEntry.metadata.mood}
                     </span>
                   )}
@@ -304,13 +416,13 @@ export default function JournalReflection({ entries, onRefresh }: JournalReflect
               </div>
               <button
                 onClick={() => setViewingPastEntry(null)}
-                className="text-slate-400 hover:text-slate-200 text-xs font-bold px-2 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors"
+                className="text-slate-400 hover:text-slate-200 text-xs font-bold px-2 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
               >
                 Cerrar
               </button>
             </div>
             <div className="bg-slate-950/50 p-4 rounded-xl border border-white/5 max-h-60 overflow-y-auto">
-              <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+              <p className="text-xs text-slate-305 leading-relaxed whitespace-pre-wrap">
                 {viewingPastEntry.content}
               </p>
             </div>

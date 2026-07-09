@@ -97,6 +97,7 @@ interface TasksTable {
     status: TaskStatus
     due_date: string | null
     completed_at: string | null
+    category: string | null
     created_at: string
   }
   // Insert accepts `string` (not the strict union) because the consumer
@@ -110,6 +111,7 @@ interface TasksTable {
     status?: string
     due_date?: string | null
     completed_at?: string | null
+    category?: string | null
     created_at?: string
   }
   Update: Partial<{
@@ -120,6 +122,7 @@ interface TasksTable {
     status: TaskStatus
     due_date: string | null
     completed_at: string | null
+    category: string | null
     created_at: string
   }>
   Relationships: []
@@ -191,6 +194,7 @@ interface TransactionsTable {
     amount: number
     type: TransactionType
     transaction_date: string
+    category: string | null
     created_at: string
   }
   Insert: {
@@ -201,6 +205,7 @@ interface TransactionsTable {
     // `type` accepts `string` for the same reason as `status` above.
     type?: string
     transaction_date?: string
+    category?: string | null
     created_at?: string
   }
   Update: Partial<{
@@ -210,6 +215,7 @@ interface TransactionsTable {
     amount: number
     type: TransactionType
     transaction_date: string
+    category: string | null
     created_at: string
   }>
   Relationships: []
@@ -660,6 +666,7 @@ db.exec(`
     status TEXT CHECK (status IN ('todo', 'done', 'ignored')) DEFAULT 'todo',
     due_date DATETIME,
     completed_at DATETIME,
+    category TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES profiles(id)
   );
@@ -692,6 +699,7 @@ db.exec(`
     amount REAL NOT NULL CHECK (amount >= 0),
     type TEXT CHECK (type IN ('income', 'expense')) NOT NULL,
     transaction_date DATE DEFAULT (DATE('now')),
+    category TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(user_id) REFERENCES profiles(id)
   );
@@ -741,10 +749,22 @@ db.exec(`
     user_id TEXT,
     payload TEXT,
     processed BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES profiles(id) ON DELETE CASCADE
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `)
+
+// Migrate old databases: Add category column to tasks if it doesn't exist
+try {
+  db.exec('ALTER TABLE tasks ADD COLUMN category TEXT')
+} catch (e) {
+  // Ignored if column already exists
+}
+
+try {
+  db.exec('ALTER TABLE transactions ADD COLUMN category TEXT')
+} catch (e) {
+  // Ignored if column already exists
+}
 
 // Seed user profile and stats if not present
 const profileExists = db.prepare('SELECT 1 FROM profiles WHERE id = ?').get(MOCK_USER_ID)

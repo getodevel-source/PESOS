@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Plus, Check, Trash2, Award, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
@@ -31,11 +31,75 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
   const [animatingHabitId, setAnimatingHabitId] = useState<string | null>(null)
 
   const supabase = createClient()
-  const todayStr = new Date().toLocaleDateString('sv-SE') // Returns YYYY-MM-DD
+  const todayStr = new Date().toLocaleDateString('sv-SE')
 
   const isCompletedToday = (habitId: string) => {
     return logs.some(log => log.habit_id === habitId && log.log_date === todayStr)
   }
+
+  // Calculate streaks counting consecutive days backward
+  const getHabitStreak = (habitId: string) => {
+    const habitLogs = logs
+      .filter((l) => l.habit_id === habitId)
+      .map((l) => l.log_date)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+
+    if (habitLogs.length === 0) return 0
+
+    const uniqueDates = Array.from(new Set(habitLogs))
+    let streak = 0
+    let checkDate = new Date()
+
+    const todayStrLocal = checkDate.toLocaleDateString('sv-SE')
+    let hasToday = uniqueDates.includes(todayStrLocal)
+    
+    checkDate.setDate(checkDate.getDate() - 1)
+    const yesterdayStr = checkDate.toLocaleDateString('sv-SE')
+    let hasYesterday = uniqueDates.includes(yesterdayStr)
+
+    if (!hasToday && !hasYesterday) {
+      return 0
+    }
+
+    checkDate = new Date()
+    
+    while (true) {
+      const checkStr = checkDate.toLocaleDateString('sv-SE')
+      if (uniqueDates.includes(checkStr)) {
+        streak++
+        checkDate.setDate(checkDate.getDate() - 1)
+      } else {
+        if (checkStr === todayStrLocal) {
+          checkDate.setDate(checkDate.getDate() - 1)
+          continue
+        }
+        break
+      }
+    }
+
+    return streak
+  }
+
+  // Get week days labels and date strings (Mon-Sun)
+  const weekDays = useMemo(() => {
+    const current = new Date()
+    const day = current.getDay()
+    const diff = current.getDate() - day + (day === 0 ? -6 : 1)
+    const monday = new Date(current.setDate(diff))
+    
+    const days: { dateStr: string; label: string }[] = []
+    const labels = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+    
+    for (let i = 0; i < 7; i++) {
+      const nextDay = new Date(monday)
+      nextDay.setDate(monday.getDate() + i)
+      days.push({
+        dateStr: nextDay.toLocaleDateString('sv-SE'),
+        label: labels[i]
+      })
+    }
+    return days
+  }, [])
 
   const handleCreateHabit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -77,7 +141,6 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
       if (!user) throw new Error('Usuario no autenticado')
 
       if (completed) {
-        // Delete log
         const { error: deleteError } = await supabase
           .from('habit_logs')
           .delete()
@@ -86,7 +149,6 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
 
         if (deleteError) throw deleteError
       } else {
-        // Insert log
         setAnimatingHabitId(habitId)
         setTimeout(() => setAnimatingHabitId(null), 800)
 
@@ -176,16 +238,25 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
       </form>
 
       {/* Habits List */}
-      <div className="flex-1 overflow-y-auto space-y-2 max-h-[300px] pr-1">
+      <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-1">
         {habits.length === 0 ? (
-          <p className="text-xs text-slate-400 text-center py-8">No tienes hábitos configurados aún.</p>
+          <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-habit-green/10 border border-habit-green/20 flex items-center justify-center">
+              <Award className="h-6 w-6 text-habit-green opacity-60" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400">Sin hábitos configurados</p>
+              <p className="text-[10px] text-slate-600 mt-1">Creá tu primer hábito arriba ↑</p>
+            </div>
+          </div>
         ) : (
           habits.map((habit) => {
             const completed = isCompletedToday(habit.id)
+            const streak = getHabitStreak(habit.id)
             return (
               <div
                 key={habit.id}
-                className={`py-2 px-3 rounded-lg border transition-all flex items-center justify-between gap-2.5 ${
+                className={`py-3 px-3 rounded-lg border transition-all flex items-center justify-between gap-2.5 ${
                   completed
                     ? 'glass-premium border-habit-green/20 glow-habit'
                     : 'glass-premium border-white/5 hover:border-habit-green/30'
@@ -211,17 +282,44 @@ export default function HabitList({ habits, logs, onRefresh }: HabitListProps) {
                       </span>
                     </span>
                   </button>
-                  <div className="min-w-0 flex flex-col">
-                    <p
-                      className={`text-xs font-semibold leading-normal truncate transition-colors ${
-                        completed ? 'text-emerald-300 line-through opacity-90' : 'text-slate-200'
-                      }`}
-                    >
-                      {habit.title}
-                    </p>
+                  <div className="min-w-0 flex flex-col flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p
+                        className={`text-xs font-semibold leading-normal truncate transition-colors ${
+                          completed ? 'text-emerald-300 line-through opacity-90' : 'text-slate-200'
+                        }`}
+                      >
+                        {habit.title}
+                      </p>
+                      {streak > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-500 font-bold font-mono animate-pulse bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20 shrink-0">
+                          🔥 {streak} {streak === 1 ? 'día' : 'días'}
+                        </span>
+                      )}
+                    </div>
                     {habit.description && (
                       <p className="text-[10px] text-slate-450 truncate mt-0.5">{habit.description}</p>
                     )}
+                    
+                    {/* 7-day completion grid (Mon-Sun) */}
+                    <div className="flex gap-1 mt-2.5">
+                      {weekDays.map((wd) => {
+                        const isLogged = logs.some((l) => l.habit_id === habit.id && l.log_date === wd.dateStr)
+                        return (
+                          <div
+                            key={wd.dateStr}
+                            className={`h-4 w-4 rounded-md flex items-center justify-center text-[7px] font-bold border select-none transition-all ${
+                              isLogged
+                                ? 'bg-habit-green/20 border-habit-green/45 text-emerald-350 shadow-sm shadow-habit-green/5'
+                                : 'bg-slate-950/40 border-white/5 text-slate-600'
+                            }`}
+                            title={`${wd.dateStr}: ${isLogged ? 'Realizado' : 'Pendiente'}`}
+                          >
+                            {wd.label}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
 

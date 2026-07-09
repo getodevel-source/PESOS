@@ -14,6 +14,8 @@ import TransactionSummary, { Transaction, BudgetStatus } from './TransactionSumm
 import TaskCalendar from './TaskCalendar'
 import ChatBot from './ChatBot'
 import ErrorBoundary from './ErrorBoundary'
+import WeatherOverlay from './WeatherOverlay'
+import { triggerConfetti } from '@/lib/confetti'
 
 // Row shapes pulled from the SQLite-backed Supabase mock schema in
 // `src/lib/sqlite-db.ts`. Using the mock's `MockDatabase` type keeps the
@@ -63,7 +65,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
   // RPG states
   const [stats, setStats] = useState<{ level: number; xp: number; streak: number } | null>(null)
-  const [achievements, setAchievements] = useState<{ id: string; title: string; description: string; icon: string; xp_reward: number; unlocked: boolean }[]>([])
+  const [achievements, setAchievements] = useState<{ id: string; title: string; description: string; icon: string; xp_reward: number; unlocked: boolean; unlocked_at?: string | null }[]>([])
 
   // Weather / budget state
   const [budgetStatus, setBudgetStatus] = useState<BudgetStatus>('ok')
@@ -72,6 +74,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
   // Close day modal state
   const [isCloseDayOpen, setIsCloseDayOpen] = useState(false)
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false)
 
   // Update states (electron-updater flow)
   // status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'installing' | 'error'
@@ -334,13 +337,14 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
         const { data: unlockedAchievements } = await supabase
           .from('user_achievements')
-          .select('achievement_id')
+          .select('achievement_id, unlocked_at')
           .eq('user_id', initialUser.id)
 
-        const unlockedIds = new Set((unlockedAchievements || []).map((ua: UserAchievementRow) => ua.achievement_id))
+        const unlockedMap = new Map((unlockedAchievements || []).map((ua: any) => [ua.achievement_id, ua.unlocked_at]))
         const achievementsWithUnlock = (allAchievements || []).map((ach: AchievementRow) => ({
           ...ach,
-          unlocked: unlockedIds.has(ach.id)
+          unlocked: unlockedMap.has(ach.id),
+          unlocked_at: unlockedMap.get(ach.id) || null
         }))
 
         setTasks(tasksData || [])
@@ -404,6 +408,68 @@ export default function Dashboard({ initialUser }: DashboardProps) {
     setBudgetStatus(status)
     setBudgetPct(pct)
     setBudgetLimit(limit)
+  }, [])
+
+  const todayJournalEntry = journalEntries.find(
+    (e) => e.entry_type === 'journal' && e.entry_date === todayStr
+  )
+  const todayMood = todayJournalEntry?.metadata?.mood || null
+
+  const todayAchievementsXP = achievements
+    .filter((ach) => {
+      if (!ach.unlocked || !ach.unlocked_at) return false
+      return new Date(ach.unlocked_at).toLocaleDateString('sv-SE') === todayStr
+    })
+    .reduce((sum, ach) => sum + (ach.xp_reward || 0), 0)
+
+  const totalXPEarnedToday = (completedTasksCount * 10) + (completedHabitsCount * 15) + (hasJournalToday ? 20 : 0) + todayAchievementsXP
+
+  const playLevelUpSound = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const now = ctx.currentTime
+      const playNote = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = 'sine'
+        osc.frequency.setValueAtTime(freq, start)
+        gain.gain.setValueAtTime(0.1, start)
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(start)
+        osc.stop(start + duration)
+      }
+      playNote(261.63, now, 0.15)
+      playNote(329.63, now + 0.1, 0.15)
+      playNote(392.00, now + 0.2, 0.15)
+      playNote(523.25, now + 0.3, 0.4)
+    } catch (e) {
+      console.error('AudioContext sound failed:', e)
+    }
+  }
+
+  const prevLevelRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (stats) {
+      if (prevLevelRef.current !== null && stats.level > prevLevelRef.current) {
+        playLevelUpSound()
+        triggerConfetti()
+      }
+      prevLevelRef.current = stats.level
+    }
+  }, [stats])
+
+  const handleExecuteAction = useCallback((action: { type: string; [key: string]: any }) => {
+    if (action.type === 'navigate') {
+      if (action.tab) {
+        setSidebarTab(action.tab)
+      }
+    } else if (action.type === 'open_modal') {
+      if (action.modal === 'close_day') {
+        setIsCloseDayOpen(true)
+      }
+    }
   }, [])
 
   return (
@@ -796,7 +862,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
         </div>
 
         {/* Main Dashboard Container */}
-        <main className="flex-1 p-4 md:p-6 space-y-6 max-w-6xl w-full mx-auto">
+        <main className="flex-1 p-4 md:p-6 space-y-6 max-w-7xl w-full mx-auto">
           {/* Header Row: Date, Weather & Close Day Button */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-panel border border-border-primary p-4 rounded-xl">
             <div className="flex items-center gap-3">
@@ -849,44 +915,44 @@ export default function Dashboard({ initialUser }: DashboardProps) {
             <>
               {/* Vista General (All elements in a grid) */}
               {sidebarTab === 'overview' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-min">
                   {/* Today's Tasks */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-1 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Tareas">
                       <TaskList tasks={todayTasks} onRefresh={handleRefresh} />
                     </ErrorBoundary>
                   </div>
 
                   {/* Daily Habits */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-1 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Hábitos">
                       <HabitList habits={habits} logs={habitLogs} onRefresh={handleRefresh} />
                     </ErrorBoundary>
                   </div>
 
                   {/* Reflections */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-1 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Reflexiones">
                       <JournalReflection entries={journalEntries} onRefresh={handleRefresh} />
                     </ErrorBoundary>
                   </div>
 
                   {/* Diet Log */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-1 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Dieta">
                       <DietLog entries={journalEntries} onRefresh={handleRefresh} />
                     </ErrorBoundary>
                   </div>
 
                   {/* Quick Transactions */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-1 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Finanzas">
                       <TransactionSummary transactions={transactions} onRefresh={handleRefresh} onBudgetStatusChange={handleBudgetStatusChange} />
                     </ErrorBoundary>
                   </div>
 
                   {/* Next Reminders / Calendar */}
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-1 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Calendario">
                       <TaskCalendar tasks={tasks} onRefresh={handleRefresh} />
                     </ErrorBoundary>
@@ -895,9 +961,17 @@ export default function Dashboard({ initialUser }: DashboardProps) {
                   {/* RPG Achievements and Logros */}
                   <div className="lg:col-span-1 glass-panel glass-panel-hover rounded-2xl p-5 shadow-xl flex flex-col justify-between">
                     <div>
-                      <h2 className="text-sm font-semibold mb-4 text-foreground flex items-center gap-2">
-                        <Award className="h-4 w-4 text-violet-400" />
-                        Logros & Hazañas
+                      <h2 className="text-sm font-semibold mb-4 text-foreground flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <Award className="h-4 w-4 text-violet-400" />
+                          Logros & Hazañas
+                        </span>
+                        <button
+                          onClick={() => setIsAchievementsOpen(true)}
+                          className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold cursor-pointer"
+                        >
+                          Ver todos
+                        </button>
                       </h2>
                       <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
                         {loading ? (
@@ -940,7 +1014,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
               {/* Tareas View */}
               {sidebarTab === 'tasks' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
+                  <div className="lg:col-span-2 flex flex-col">
                     <ErrorBoundary fallbackTitle="Error en Tareas">
                       <TaskList tasks={todayTasks} onRefresh={handleRefresh} />
                     </ErrorBoundary>
@@ -955,7 +1029,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
               {/* Hábitos View */}
               {sidebarTab === 'habits' && (
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-4xl mx-auto flex flex-col" style={{ minHeight: 'calc(100vh - 180px)' }}>
                   <ErrorBoundary fallbackTitle="Error en Hábitos">
                     <HabitList habits={habits} logs={habitLogs} onRefresh={handleRefresh} />
                   </ErrorBoundary>
@@ -964,7 +1038,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
               {/* Journal/Reflexiones View */}
               {sidebarTab === 'journal' && (
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-4xl mx-auto flex flex-col" style={{ minHeight: 'calc(100vh - 180px)' }}>
                   <ErrorBoundary fallbackTitle="Error en Reflexiones">
                     <JournalReflection entries={journalEntries} onRefresh={handleRefresh} />
                   </ErrorBoundary>
@@ -973,7 +1047,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
               {/* Diet Log View */}
               {sidebarTab === 'diet' && (
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-4xl mx-auto flex flex-col" style={{ minHeight: 'calc(100vh - 180px)' }}>
                   <ErrorBoundary fallbackTitle="Error en Dieta">
                     <DietLog entries={journalEntries} onRefresh={handleRefresh} />
                   </ErrorBoundary>
@@ -982,7 +1056,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
               {/* Finances View */}
               {sidebarTab === 'finances' && (
-                <div className="max-w-3xl mx-auto">
+                <div className="max-w-4xl mx-auto flex flex-col" style={{ minHeight: 'calc(100vh - 180px)' }}>
                   <ErrorBoundary fallbackTitle="Error en Finanzas">
                     <TransactionSummary transactions={transactions} onRefresh={handleRefresh} onBudgetStatusChange={handleBudgetStatusChange} />
                   </ErrorBoundary>
@@ -991,9 +1065,9 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
               {/* IA Chat View */}
               {sidebarTab === 'ai' && (
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-4xl mx-auto h-[calc(100vh-140px)]">
                   <ErrorBoundary fallbackTitle="Error en IA Chat">
-                    <ChatBot />
+                    <ChatBot onRefresh={handleRefresh} onExecuteAction={handleExecuteAction} />
                   </ErrorBoundary>
                 </div>
               )}
@@ -1008,7 +1082,7 @@ export default function Dashboard({ initialUser }: DashboardProps) {
           <div className="relative bg-panel border border-border-primary rounded-xl p-6 max-w-sm w-full shadow-2xl space-y-5">
             <button
               onClick={() => setIsCloseDayOpen(false)}
-              className="absolute top-4 right-4 p-1 rounded-md text-slate-400 hover:text-slate-250 hover:bg-white/5 transition-colors"
+              className="absolute top-4 right-4 p-1 rounded-md text-slate-400 hover:text-slate-255 hover:bg-white/5 transition-colors cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1023,26 +1097,42 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
             <div className="bg-background/50 p-4 rounded-lg border border-border-primary space-y-2.5 text-xs">
               <div className="flex justify-between items-center">
-                <span className="text-slate-450">Tareas completadas</span>
+                <span className="text-slate-400">Tareas completadas</span>
                 <span className="font-semibold text-slate-200">
-                  {completedTasksCount} / {totalTasksCount}
+                  {completedTasksCount} / {totalTasksCount} (+{completedTasksCount * 10} XP)
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-455">Hábitos realizados</span>
+                <span className="text-slate-400">Hábitos realizados</span>
                 <span className="font-semibold text-slate-200">
-                  {completedHabitsCount} / {totalHabitsCount}
+                  {completedHabitsCount} / {totalHabitsCount} (+{completedHabitsCount * 15} XP)
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-455">Gastos registrados</span>
+                <span className="text-slate-400">Reflexión diaria</span>
+                <span className="font-semibold text-slate-200">
+                  {hasJournalToday ? 'Completada (+20 XP)' : 'No escrita (+0 XP)'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400">Logros desbloqueados</span>
+                <span className="font-semibold text-slate-200">
+                  +{todayAchievementsXP} XP
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-t border-white/5 pt-2">
+                <span className="text-slate-400">Gastos registrados</span>
                 <span className="font-semibold text-rose-400">${totalExpense.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-455">¿Bitácora escrita?</span>
-                <span className={`font-semibold ${hasJournalToday ? 'text-emerald-450' : 'text-slate-500'}`}>
-                  {hasJournalToday ? 'Sí' : 'No'}
+                <span className="text-slate-400">Ánimo de hoy</span>
+                <span className="font-semibold text-slate-200 text-sm">
+                  {todayMood || 'No registrado'}
                 </span>
+              </div>
+              <div className="flex justify-between items-center border-t border-white/5 pt-2 text-brand-indigo font-bold">
+                <span>Total XP Ganado Hoy</span>
+                <span>+{totalXPEarnedToday} XP</span>
               </div>
             </div>
 
@@ -1052,13 +1142,79 @@ export default function Dashboard({ initialUser }: DashboardProps) {
 
             <button
               onClick={() => setIsCloseDayOpen(false)}
-              className="w-full py-2 bg-brand-indigo hover:bg-brand-indigo/90 text-white text-xs font-semibold rounded-md border border-white/10 shadow-md transition-colors"
+              className="w-full py-2 bg-brand-indigo hover:bg-brand-indigo/90 text-white text-xs font-semibold rounded-md border border-white/10 shadow-md transition-colors cursor-pointer"
             >
               Completado por hoy
             </button>
           </div>
         </div>
       )}
+
+      {/* Achievements slide-over deck list */}
+      {isAchievementsOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-background/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md h-full bg-slate-900 border-l border-white/10 p-6 flex flex-col shadow-2xl relative animate-slide-in">
+            <button
+              onClick={() => setIsAchievementsOpen(false)}
+              className="absolute top-6 right-6 p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="mb-6">
+              <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
+                <Award className="h-5 w-5 text-violet-400" />
+                Mazo de Logros & Hazañas
+              </h3>
+              <p className="text-xs text-slate-450 mt-1">
+                Visualizá tus logros desbloqueados y las metas que aún te faltan alcanzar.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+              {achievements.map((ach) => (
+                <div
+                  key={ach.id}
+                  className={`flex gap-4 items-center p-3.5 rounded-xl border transition-all ${
+                    ach.unlocked
+                      ? 'bg-violet-950/20 border-violet-500/20 shadow-md shadow-violet-950/5 text-slate-100'
+                      : 'bg-slate-950/40 border-white/5 opacity-50 text-slate-400'
+                  }`}
+                >
+                  <span className={`text-3xl shrink-0 p-2 rounded-lg ${ach.unlocked ? 'bg-violet-500/10' : 'bg-slate-900'}`} role="img" aria-label={ach.title}>
+                    {ach.icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex justify-between items-baseline gap-2">
+                      <h4 className="text-xs font-bold truncate">{ach.title}</h4>
+                      <span className={`text-[10px] font-mono font-bold shrink-0 ${ach.unlocked ? 'text-violet-400' : 'text-slate-500'}`}>
+                        +{ach.xp_reward} XP
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{ach.description}</p>
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${ach.unlocked ? 'bg-emerald-500 shadow-md shadow-emerald-500/50' : 'bg-amber-500'}`} />
+                      <span className="text-[9px] font-semibold tracking-wide uppercase">
+                        {ach.unlocked ? 'Desbloqueado' : 'Bloqueado'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating ChatBot — hidden when already in AI tab to avoid duplication */}
+      {sidebarTab !== 'ai' && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <ChatBot isFloating={true} onRefresh={handleRefresh} onExecuteAction={handleExecuteAction} />
+        </div>
+      )}
+
+      {/* Weather particles background canvas */}
+      <WeatherOverlay weather={weather} />
     </div>
     </AuthGate>
   )

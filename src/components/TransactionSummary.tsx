@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Plus, Trash2, DollarSign, ArrowUpRight, ArrowDownRight, AlertTriangle, TrendingUp, Target, ChevronDown, ChevronUp, Sliders, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase-client'
 
-// Budget status type exported for Dashboard weather system
 export type BudgetStatus = 'ok' | 'warning' | 'critical'
 
 const BUDGET_KEY = 'pesos_monthly_budget_limit'
@@ -14,57 +13,44 @@ function getMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-// ── ARS Amount Formatter ────────────────────────────────────────
-// Converts raw number to ARS display string: 800000 -> "800.000"
 function toARSDisplay(num: number): string {
   if (isNaN(num) || num === 0) return ''
-  // Split integer and decimal parts
   const intPart = Math.floor(Math.abs(num))
   const decimalStr = (() => {
     const dec = num - Math.floor(num)
     if (dec === 0) return ''
-    // Show up to 2 decimal places, trim trailing zeros
-    return dec.toFixed(2).slice(1) // e.g. ".50"
+    return dec.toFixed(2).slice(1)
   })()
-  // Format integer with dots as thousand separators
   const formatted = intPart.toLocaleString('es-AR').replace(/,/g, '.')
   return formatted + decimalStr.replace('.', ',')
 }
 
-// Parses ARS display string to numeric value: "800.000,50" -> 800000.50
 function parseARSInput(raw: string): number {
   if (!raw) return 0
-  // Remove dots (thousand separators) and replace comma with dot (decimal)
   const normalized = raw.replace(/\./g, '').replace(',', '.')
   const val = parseFloat(normalized)
   return isNaN(val) ? 0 : val
 }
 
-// Formats a string input progressively as the user types
 function formatARSOnChange(input: string): string {
-  // Allow only digits, dots and one comma (decimal)
-  // Strip non-numeric chars except comma
   let cleaned = input.replace(/[^0-9,]/g, '')
-  // Only allow one comma
   const commaIdx = cleaned.indexOf(',')
   if (commaIdx !== -1) {
     cleaned = cleaned.slice(0, commaIdx + 1) + cleaned.slice(commaIdx + 1).replace(/,/g, '')
   }
-  // Split on comma to handle decimal
   const parts = cleaned.split(',')
   const intPart = parts[0].replace(/^0+/, '') || '0'
   const decPart = parts[1] !== undefined ? ',' + parts[1].slice(0, 2) : ''
-  // Format integer part with dots
   const formatted = Number(intPart).toLocaleString('es-AR').replace(/,/g, '.')
   return (formatted === '0' && !cleaned ? '' : formatted === '0' ? '' : formatted) + decPart
 }
-// ─────────────────────────────────────────────────────────
 
 export interface Transaction {
   id: string
   description: string
   amount: number
   type: 'income' | 'expense'
+  category?: string | null
   transaction_date: string
 }
 
@@ -74,12 +60,23 @@ interface TransactionSummaryProps {
   onBudgetStatusChange?: (status: BudgetStatus, pct: number, limit: number) => void
 }
 
+const CATEGORY_COLORS: Record<string, { hex: string }> = {
+  'Comida': { hex: '#f43f5e' },
+  'Transporte': { hex: '#f59e0b' },
+  'Servicios': { hex: '#0ea5e9' },
+  'Entretenimiento': { hex: '#8b5cf6' },
+  'Salud': { hex: '#10b981' },
+  'Otros': { hex: '#64748b' },
+  'Sueldo': { hex: '#22c55e' },
+  'Inversiones': { hex: '#06b6d4' }
+}
+
 export default function TransactionSummary({ transactions, onRefresh, onBudgetStatusChange }: TransactionSummaryProps) {
   const [desc, setDesc] = useState('')
-  // ARS amount: display is formatted with dots, raw is the actual number
-  const [amountDisplay, setAmountDisplay] = useState('') // e.g. "800.000"
-  const [amountRaw, setAmountRaw] = useState(0)          // e.g. 800000
+  const [amountDisplay, setAmountDisplay] = useState('')
+  const [amountRaw, setAmountRaw] = useState(0)
   const [type, setType] = useState<'income' | 'expense'>('expense')
+  const [category, setCategory] = useState('Otros')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -96,10 +93,26 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
   const [isBudgetOpen, setIsBudgetOpen] = useState(true)
   const [sliderValue, setSliderValue] = useState<number>(0)
 
+  // Calculator state
+  const [isCalcOpen, setIsCalcOpen] = useState(false)
+  const [calcAmount, setCalcAmount] = useState('')
+  const [calcFrom, setCalcFrom] = useState<'ARS' | 'USD'>('ARS')
+
   const supabase = useMemo(() => createClient(), [])
   const todayStr = new Date().toLocaleDateString('sv-SE')
 
-  // Load budget limit from profiles table on mount (or fallback to localStorage)
+  // Available categories depending on transaction type
+  const categoryOptions = useMemo(() => {
+    return type === 'expense'
+      ? ['Comida', 'Transporte', 'Servicios', 'Entretenimiento', 'Salud', 'Otros']
+      : ['Sueldo', 'Inversiones', 'Otros']
+  }, [type])
+
+  useEffect(() => {
+    setCategory('Otros')
+  }, [type])
+
+  // Load budget limit from profiles table on mount
   useEffect(() => {
     async function loadBudget() {
       try {
@@ -120,7 +133,6 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
           setSliderValue(val)
           setBudgetInput(toARSDisplay(val))
         } else {
-          // fallback to localStorage
           const saved = localStorage.getItem(BUDGET_KEY)
           if (saved) {
             const val = parseFloat(saved)
@@ -128,14 +140,12 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
               setBudgetLimit(val)
               setSliderValue(val)
               setBudgetInput(toARSDisplay(val))
-              // Sync to DB
               await supabase.from('profiles').update({ monthly_budget: val }).eq('id', user.id)
             }
           }
         }
       } catch (err) {
         console.error('Error loading budget from DB:', err)
-        // fallback to localStorage
         const saved = localStorage.getItem(BUDGET_KEY)
         if (saved) {
           const val = parseFloat(saved)
@@ -195,6 +205,65 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
       return tKey === monthKey
     })
     .reduce((sum, t) => sum + Number(t.amount), 0)
+
+  // Calculate monthly category expenses share
+  const categoryExpenses = useMemo(() => {
+    const currentMonthExpenses = transactions.filter((t) => {
+      if (t.type !== 'expense') return false
+      const d = new Date(t.transaction_date)
+      const tKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      return tKey === monthKey
+    })
+    
+    const totals: Record<string, number> = {}
+    let total = 0
+    currentMonthExpenses.forEach((t) => {
+      const cat = t.category || 'Otros'
+      const amt = Number(t.amount) || 0
+      totals[cat] = (totals[cat] || 0) + amt
+      total += amt
+    })
+    
+    return { totals, total }
+  }, [transactions, monthKey])
+
+  // Conic gradient style for the category pie chart
+  const pieChartStyle = useMemo(() => {
+    const { totals, total } = categoryExpenses
+    if (total === 0) return { background: 'rgba(255, 255, 255, 0.05)' }
+    
+    let accumulatedPercent = 0
+    const segments: string[] = []
+    
+    Object.entries(totals).forEach(([cat, amt]) => {
+      const color = CATEGORY_COLORS[cat]?.hex || '#64748b'
+      const pct = (amt / total) * 100
+      segments.push(`${color} ${accumulatedPercent}% ${(accumulatedPercent + pct)}%`)
+      accumulatedPercent += pct
+    })
+    
+    return {
+      background: `conic-gradient(${segments.join(', ')})`
+    }
+  }, [categoryExpenses])
+
+  // MEP rate conversion calculator result
+  const calcResult = useMemo(() => {
+    if (!mepRate || !calcAmount) return null
+    const num = parseFloat(calcAmount)
+    if (isNaN(num)) return null
+    if (calcFrom === 'ARS') {
+      return {
+        amount: num / mepRate.venta,
+        label: 'USD'
+      }
+    } else {
+      return {
+        amount: num * mepRate.compra,
+        label: 'ARS'
+      }
+    }
+  }, [calcAmount, calcFrom, mepRate])
 
   // Budget derived values
   const budgetPct = budgetLimit > 0 ? Math.min((monthlyExpense / budgetLimit) * 100, 100) : 0
@@ -266,12 +335,10 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Usuario no autenticado')
 
-      // Convert USD to ARS if needed
       const arsAmount = currency === 'USD' && mepRate
         ? Math.round(amountRaw * mepRate.venta * 100) / 100
         : amountRaw
 
-      // Tag description with USD info for traceability
       const finalDesc = currency === 'USD' && mepRate
         ? `${desc.trim()} (USD ${amountRaw % 1 === 0 ? amountRaw.toFixed(0) : amountRaw.toFixed(2)} @ $${toARSDisplay(mepRate.venta)})`
         : desc.trim()
@@ -281,6 +348,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
         description: finalDesc,
         amount: arsAmount,
         type,
+        category,
         transaction_date: todayStr,
       })
 
@@ -289,6 +357,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
       setDesc('')
       setAmountDisplay('')
       setAmountRaw(0)
+      setCategory('Otros')
       onRefresh()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : 'Error al guardar la transacción'
@@ -315,15 +384,9 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
     }
   }
 
-  // Generate SVG Sparkline Trend data
   const sparkline = (() => {
     if (transactions.length < 2) return null
-    // Get last 8 transactions in chronological order to plot progress
     const sorted = [...transactions].slice(0, 8).reverse()
-    // Compute the running balance in a single pass. Using reduce avoids
-    // mutating a render-scope `let` variable, which the
-    // react-hooks/immutability rule flags as a side effect inside what
-    // should be a pure expression.
     const pointsArray = sorted.reduce<{ point: number; balances: number[] }>(
       (acc, t) => {
         const delta = t.type === 'income' ? Number(t.amount) : -Number(t.amount)
@@ -371,7 +434,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
           <button
             type="button"
             onClick={() => setIsBudgetOpen((v) => !v)}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 hover:bg-white/[0.02] transition-colors"
+            className="w-full flex items-center justify-between px-3.5 py-2.5 hover:bg-white/[0.02] transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Target className="h-3.5 w-3.5 text-finance-blue" />
@@ -391,7 +454,6 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
             <div className="px-3.5 pb-3.5 space-y-3">
               {budgetLimit > 0 ? (
                 <>
-                  {/* Progress Bar */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-baseline">
                       <span className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Consumido este mes</span>
@@ -423,7 +485,6 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
                     )}
                   </div>
 
-                  {/* Remaining */}
                   <div className="flex justify-between text-[10px]">
                     <span className="text-slate-500">Disponible</span>
                     <span className={`font-bold font-mono ${budgetOverflow ? 'text-rose-400' : 'text-slate-300'}`}>
@@ -435,7 +496,7 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
                 <p className="text-[10px] text-slate-500 text-center py-1">Establecé tu límite mensual de gastos</p>
               )}
 
-              {/* Budget Slider + Input */}
+              {/* Budget Slider */}
               <div className="space-y-2 pt-1 border-t border-white/[0.04]">
                 <div className="flex items-center gap-2">
                   <Sliders className="h-3 w-3 text-slate-500 shrink-0" />
@@ -496,14 +557,6 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
             </div>
           )}
         </div>
-        {/* ────────────────────────────────────────────────────────── */}
-
-        {error && (
-          <div className="mb-4 p-2 rounded bg-red-500/10 border border-red-500/20 text-xs text-red-300 flex items-center gap-1">
-            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
 
         {/* Custom SVG Sparkline Trend Chart */}
         {sparkline && (
@@ -516,15 +569,50 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
                   <stop offset="100%" stopColor={sparkline.isPositive ? '#3b82f6' : '#ef4444'} stopOpacity="0.00" />
                 </linearGradient>
               </defs>
-              {/* Grid Line */}
               <line x1="0" y1="22.5" x2="320" y2="22.5" stroke="rgba(255,255,255,0.03)" strokeDasharray="2,2" />
-              {/* Fill Area */}
               <path d={sparkline.areaD} fill="url(#sparklineGrad)" />
-              {/* Line path */}
               <path d={sparkline.pathD} fill="none" stroke={sparkline.isPositive ? '#3b82f6' : '#ef4444'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
         )}
+
+        {/* ── Category breakdown chart ─────────────────────────────── */}
+        <div className="mb-4 space-y-2">
+          <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+            Distribución de Gastos (Mes)
+          </label>
+          <div className="flex items-center gap-6 bg-slate-950/20 p-4 rounded-xl border border-white/[0.03]">
+            <div 
+              style={pieChartStyle} 
+              className="h-24 w-24 rounded-full border border-white/10 shadow-lg relative flex items-center justify-center shrink-0"
+            >
+              <div className="h-14 w-14 rounded-full bg-slate-900 flex flex-col items-center justify-center border border-white/[0.04] shadow-inner text-center">
+                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Total</span>
+                <span className="text-[10px] font-bold font-mono text-slate-200">${toARSDisplay(categoryExpenses.total) || '0'}</span>
+              </div>
+            </div>
+            
+            <div className="flex-1 min-w-0 space-y-1.5 max-h-[100px] overflow-y-auto pr-1 scrollbar-thin">
+              {Object.keys(categoryExpenses.totals).length === 0 ? (
+                <p className="text-[10px] text-slate-500 italic">No hay gastos este mes</p>
+              ) : (
+                Object.entries(categoryExpenses.totals).map(([cat, amt]) => {
+                  const colors = CATEGORY_COLORS[cat] || CATEGORY_COLORS.Otros
+                  const pct = ((amt / categoryExpenses.total) * 100).toFixed(0)
+                  return (
+                    <div key={cat} className="flex items-center justify-between text-[10px] gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: colors.hex }} />
+                        <span className="text-slate-300 font-semibold truncate">{cat}</span>
+                      </div>
+                      <span className="font-mono text-slate-400 shrink-0 font-bold">${toARSDisplay(amt)} ({pct}%)</span>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </div>
 
         {/* Financial Summary Cards */}
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -668,30 +756,47 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
           )}
 
           <div className="flex gap-2 items-center justify-between">
-            <div className="flex bg-slate-950/50 p-0.5 rounded border border-white/5">
-              <button
-                type="button"
-                onClick={() => setType('expense')}
-                className={`px-3 py-1 rounded text-[10px] font-semibold btn-tactile transition-all cursor-pointer ${
-                  type === 'expense'
-                    ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
-                }`}
+            <div className="flex items-center gap-2">
+              <div className="flex bg-slate-950/50 p-0.5 rounded border border-white/5">
+                <button
+                  type="button"
+                  onClick={() => setType('expense')}
+                  className={`px-3 py-1 rounded text-[10px] font-semibold btn-tactile transition-all cursor-pointer ${
+                    type === 'expense'
+                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Gasto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setType('income')}
+                  className={`px-3 py-1 rounded text-[10px] font-semibold btn-tactile transition-all cursor-pointer ${
+                    type === 'income'
+                      ? 'bg-emerald-500/10 text-habit-green border border-emerald-500/20 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  }`}
+                >
+                  Ingreso
+                </button>
+              </div>
+
+              {/* Category selector pill dropdown */}
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="bg-slate-950/50 border border-white/5 rounded-md px-2.5 py-1 text-[10px] text-slate-400 focus:outline-none focus:border-finance-blue cursor-pointer h-7"
+                title="Categoría"
               >
-                Gasto
-              </button>
-              <button
-                type="button"
-                onClick={() => setType('income')}
-                className={`px-3 py-1 rounded text-[10px] font-semibold btn-tactile transition-all cursor-pointer ${
-                  type === 'income'
-                    ? 'bg-emerald-500/10 text-habit-green border border-emerald-500/20 shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
-                }`}
-              >
-                Ingreso
-              </button>
+                {categoryOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
             </div>
+
             <button
               type="submit"
               disabled={loading || (currency === 'USD' && mepLoading)}
@@ -703,7 +808,54 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
           </div>
         </form>
 
-        {/* Transactions List */}
+        {/* Collapsible MEP Converter Tool */}
+        {mepRate && (
+          <div className="mb-4 rounded-xl border border-white/[0.06] glass-premium overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setIsCalcOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-3.5 py-2 hover:bg-white/[0.02] transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-3.5 w-3.5 text-emerald-400" />
+                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Calculadora MEP</span>
+              </div>
+              {isCalcOpen ? <ChevronUp className="h-3 w-3 text-slate-500" /> : <ChevronDown className="h-3 w-3 text-slate-500" />}
+            </button>
+            {isCalcOpen && (
+              <div className="px-3.5 pb-3.5 pt-1 space-y-2.5">
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={calcAmount}
+                    onChange={(e) => setCalcAmount(e.target.value)}
+                    placeholder="Monto a convertir..."
+                    className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-white/10 rounded-md text-xs text-foreground focus:outline-none focus:border-emerald-500 font-mono"
+                  />
+                  <select
+                    value={calcFrom}
+                    onChange={(e) => setCalcFrom(e.target.value as 'ARS' | 'USD')}
+                    className="px-2 py-1.5 bg-slate-900 border border-white/10 rounded-md text-xs text-slate-400 focus:outline-none"
+                  >
+                    <option value="ARS">ARS → USD</option>
+                    <option value="USD">USD → ARS</option>
+                  </select>
+                </div>
+                {calcResult && (
+                  <div className="text-center p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono font-bold text-emerald-300">
+                    {calcFrom === 'ARS' ? (
+                      <p>${calcAmount} ARS = <strong className="text-slate-100">U$D {calcResult.amount.toFixed(2)}</strong></p>
+                    ) : (
+                      <p>U$D {calcAmount} = <strong className="text-slate-100">${toARSDisplay(Math.round(calcResult.amount))} ARS</strong></p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Transactions List with Category badges */}
         <div className="flex-1 overflow-y-auto space-y-2 max-h-[160px] pr-1">
           {transactions.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-6">No hay transacciones hoy.</p>
@@ -715,8 +867,15 @@ export default function TransactionSummary({ transactions, onRefresh, onBudgetSt
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-slate-200 truncate">{trans.description}</p>
-                  <p className="text-[10px] text-slate-400 font-medium">
-                    {trans.type === 'income' ? 'Ingreso' : 'Gasto'}
+                  <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 flex-wrap">
+                    <span>{trans.type === 'income' ? 'Ingreso' : 'Gasto'}</span>
+                    {trans.category && trans.category !== 'Otros' && (
+                      <span className={`text-[8px] px-1 rounded uppercase font-bold shrink-0 ${
+                        trans.type === 'income' ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20' : 'bg-rose-500/15 text-rose-350 border border-rose-500/20'
+                      }`}>
+                        {trans.category}
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-2.5 shrink-0">
